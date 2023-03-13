@@ -49,7 +49,10 @@ export async function POST({ request }) {
       const channel = asquery.get("channel_name");
       console.log(socketId, channel);
       const auth = pusher.authorizeChannel(socketId, channel);
-      return json({ auth: auth }, { status: 200 });
+      console.log("auth", auth);
+      const res = json({ auth: auth }, { status: 200 });
+      console.log("res", res);
+      return res;
     } else {
       return json({}, { status: 400 });
     }
