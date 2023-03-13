@@ -11,6 +11,7 @@ export const pusher = new Pusher({
   cluster: APP_CLUSTER
 });
 
+/** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
     const data = await request.json();
     const username = data.username;
