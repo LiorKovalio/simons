@@ -1,25 +1,37 @@
-<!-- https://codesandbox.io/s/nmdi4 -->
+<!-- https://github.com/anchetaWern/RNMemory/blob/master/app/screens/Game.js -->
 <script lang="ts">
     import { onMount } from "svelte";
 
-    import { useMachine } from '@xstate/svelte';
+    import { useMachine } from "@xstate/svelte";
 
-    import type { Socket } from "socket.io-client";
-    import ioClient from "socket.io-client";
+    import Pusher from "pusher-js";
+    import * as PusherTypes from "pusher-js";
 
-    import { States, Events, simonMachine, SimonModes } from "../lib/simonLogic";
+    import {
+        States,
+        Events,
+        simonMachine,
+        SimonModes,
+    } from "../lib/simonLogic";
     import { sleep } from "../lib/sleep";
 
-
-
-    const { state: simonState, send: simonSend, service: simonService } = useMachine(simonMachine);
+    const {
+        state: simonState,
+        send: simonSend,
+        service: simonService,
+    } = useMachine(simonMachine);
     simonService
         .onTransition(async (state) => {
-            console.log(`${state.value}\n\tsequence: ${state.context.sequence}\n\tcurrent: ${state.context.currentSequence}`);
+            console.log(
+                `${state.value}\n\tsequence: ${state.context.sequence}\n\tcurrent: ${state.context.currentSequence}`
+            );
             console.log(`\tmode: ${state.context.mode}`);
             switch (state.value) {
                 case States.WaitingForUser:
-                    if (state.context.sequence.length > 0 && state.context.currentSequence.length === 0) {
+                    if (
+                        state.context.sequence.length > 0 &&
+                        state.context.currentSequence.length === 0
+                    ) {
                         await withUserInputDisabled(async () => {
                             allActive = true;
                             await sleep(show_press_gap);
@@ -29,6 +41,14 @@
                         });
                     }
                     break;
+                // case States.Win:
+                //     closeConnection();
+                //     break;
+                // case States.Fail:
+                //     if (state.context.mode === SimonModes.Duel) {
+                //         closeConnection();
+                //     }
+                //     break;
                 default:
                     break;
             }
@@ -37,19 +57,31 @@
             console.dir(event);
             switch (event.type) {
                 case Events.Click:
-                    if ($simonState.context.mode === SimonModes.Duel && io) {
-                        const e = event as { type: Events.Click, opt: string };
-                        if ($simonState.value === States.WaitingForUser || $simonState.value === States.WaitingForExtension) {
-                            io.emit("user clicked", e.opt, (v: any) => {
-                                console.log(`server: ${v}`);
-                            });
+                    if (
+                        $simonState.context.mode === SimonModes.Duel &&
+                        pusher_private_user_channel != null
+                    ) {
+                        const e = event as { type: Events.Click; opt: string };
+                        if (
+                            $simonState.value === States.WaitingForUser ||
+                            $simonState.value === States.WaitingForExtension
+                        ) {
+                            pusher_private_user_channel.trigger(
+                                "client-ioclicked",
+                                {
+                                    opt: e.opt,
+                                }
+                            );
                         }
                     }
                     break;
-                case Events.SetMode:
-                    const e = event as { type: Events.SetMode, mode: SimonModes };
-                    toggleConnection(e.mode);
-                    break;
+                // case Events.SetMode:
+                //     const e = event as {
+                //         type: Events.SetMode;
+                //         mode: SimonModes;
+                //     };
+                //     toggleConnection(e.mode);
+                //     break;
             }
         })
         .start();
@@ -59,51 +91,126 @@
     let show_press_duraion = 500;
     let show_press_gap = 500;
 
-    let status = "waiting_for_start";
     let disabled = true;
     let allActive = false;
     let colorActive = "";
-
-    // connection vars, inited on onMount. see "onMount setConnection"
-    let setConnection = () => {};
-    let io: Socket | null;
+    let input_username = "";
 
     // audio vars, inited on onMount. see "onMount audioContext"
     let oscillator: OscillatorNode | null;
     let gainNode: GainNode | null;
     let audioContextInited = false;
-    let initAudioContext = () => { audioContextInited = true; };
+    let initAudioContext = () => {
+        audioContextInited = true;
+    };
 
-    onMount(async () => {
-        // onMount setConnection
-        setConnection = () => {
-            const ENDPOINT = "http://localhost:3000";
-            // const ENDPOINT = "192.168.1.225:3000";
-            const socket = ioClient(ENDPOINT);
+    // pusher connection vars
+    let pusher: Pusher | null = null;
+    let pusher_private_user_channel: PusherTypes.Channel | null = null;
+    let other_subscriptions: string[] = [];
+    function onPusherSubscriptionError(status) {
+        console.error("Error", "Subscription error occurred. Please restart the app");
+    }
 
-            socket.on("self", function (msg) {
-                console.log(`id on server : "${msg}"`);
-            });
-            socket.on("waiting for opponent", function () {
-                status = "waiting_for_opponent";
-            });
-            socket.on("paired", function (myTurn: boolean) {
-                console.log("myTurn?", myTurn);
-                status = myTurn
-                    ? "waiting_for_user_move"
-                    : "waiting_for_opponent_move";
-                disabled = !myTurn;
-                simonSend({ type: Events.Start, myTurn: myTurn });
-            });
-            socket.on("opponent clicked", async function (msg) {
+    function setTransportToOther(p: string) {
+        const channel_name = `private-user-${p}`;
+        other_subscriptions.push(channel_name);
+        const pc = pusher!.subscribe(channel_name);
+        pc.bind("pusher:subscription_error", onPusherSubscriptionError);
+
+        pc.bind("pusher:subscription_succeeded", (data) => {
+            console.log("opponent subscription ok: ", data);
+
+            pc.bind("client-ioclicked", (data) => {
                 if ($simonState.value === States.WaitingForOpponent) {
-                    console.log(`opponent clicked : "${msg}"`);
-                    simonSend({ type: Events.Click, opt: msg});
+                    console.log(`opponent clicked : "${data.opt}"`);
+                    simonSend({
+                        type: Events.Click,
+                        opt: data.opt,
+                    });
                 } else {
                     console.error("not expecting opponent play");
                 }
             });
-            io = socket;
+        });
+    }
+
+    let setPusherConnection = () => {};
+    function closeConnection() {
+        if (pusher != null) {
+            other_subscriptions.forEach((name) =>
+                pusher!.unsubscribe(name)
+            );
+            other_subscriptions = [];
+            pusher.disconnect();
+            pusher = null;
+        }
+    }
+
+    onMount(async () => {
+        setPusherConnection = () => {
+            const username = input_username === "" ? Date.now().toString() : input_username;
+            console.log("username is", username);
+
+            if (username) {
+                console.log("connecting");
+                // connect to Pusher:
+                pusher = new Pusher("9d2f5a06a2657bbdee27", {
+                    cluster: "ap2",
+                    channelAuthorization: {
+                        endpoint: "/pusher/auth",
+                        transport: "ajax",
+                        params: { username: username },
+                    },
+                });
+                console.log("pusher created");
+
+                pusher_private_user_channel = pusher.subscribe(
+                    `private-user-${username}`
+                ); // subscribe to user's unique channel
+
+                // subscription error occurred
+                pusher_private_user_channel.bind("pusher:subscription_error", onPusherSubscriptionError);
+
+                // subscription to their own channel succeeded
+                pusher_private_user_channel.bind("pusher:subscription_succeeded", (data) => {
+                    console.log("subscription ok: ", data);
+
+                    pusher_private_user_channel!.bind(
+                        "waiting_for_opponent",
+                        (data) => {
+                            console.log("waiting for opponent", data);
+                        }
+                    );
+
+                    pusher_private_user_channel!.bind("paired", (data) => {
+                        if (
+                            $simonState.value === States.Off ||
+                            $simonState.value === States.Fail ||
+                            $simonState.value === States.Win
+                        ) {
+                            forceHideStartButton = false;
+                            console.log("paired", data);
+                            const myTurn = data.players[0] === username;
+                            console.log("myTurn?", myTurn);
+                            disabled = !myTurn;
+                            simonSend({
+                                type: Events.Start,
+                                myTurn: myTurn,
+                            });
+
+                            data.players.forEach((p: string) => {
+                                if (p !== username) {
+                                    console.log(username, "working with", p);
+                                    setTransportToOther(p);
+                                }
+                            });
+                        } else {
+                            console.error("not waiting for pairing");
+                        }
+                    });
+                });
+            }
         };
 
         // onMount audioContext
@@ -142,20 +249,27 @@
         }
     }
 
-    async function withUserInputDisabled(func: ()=>void) {
+    async function withUserInputDisabled(func: () => void) {
         disabled = true;
-        status = "playing_seq";
         const res = await func();
-        status = "waiting_for_user";
         disabled = false;
         return res;
     }
 
+    let forceHideStartButton = false;
     async function startGame() {
-        initAudioContext();
-        withUserInputDisabled(async () => {
-            simonService.send(Events.Start);
-        });
+        if (!audioContextInited) {
+            initAudioContext();
+        }
+
+        if ($simonState.context.mode === SimonModes.Solo) {
+            withUserInputDisabled(async () => {
+                simonService.send(Events.Start);
+            });
+        } else if ($simonState.context.mode === SimonModes.Duel) {
+            setPusherConnection();
+            forceHideStartButton = true;
+        }
     }
 
     async function repeat() {
@@ -171,65 +285,6 @@
             a1.every((element, index) => element === a2[index])
         );
     }
-
-    // async function padClick(color: string) {
-    //     if (
-    //         gameMode === "duel" &&
-    //         (status === "waiting_for_user_move" ||
-    //             (status === "waiting_for_user" &&
-    //                 isSameSeq(pattern, userPattern)))
-    //     ) {
-    //         disabled = true;
-    //         status = "waiting_for_opponent_move";
-    //         console.log("user added", color);
-    //         await lightPad(color);
-    //         pattern.push(color);
-    //         io.emit("user added", color, (v) => {
-    //             console.log(`server: ${v}`);
-    //         });
-    //         return;
-    //     }
-    //     if (pattern.length == 0) {
-    //         return;
-    //     }
-    //     // if (status !== "waiting_for_user") { // ignore user
-    //     //     return;
-    //     // }
-    //     console.log("user clicked", color);
-    //     if (gameMode === "duel") {
-    //         io.emit("user clicked", color, (v) => {
-    //             console.log(`server: ${v}`);
-    //         });
-    //     }
-    //     userPattern.push(color);
-    //     const i = userPattern.length - 1;
-    //     if (userPattern[i] === pattern[i]) {
-    //         // user right color
-    //         await lightPad(color);
-    //         if (userPattern.length === pattern.length) {
-    //             withUserInputDisabled(async () => {
-    //                 userPattern = [];
-    //                 allActive = true;
-    //                 await sleep(show_press_gap);
-    //                 allActive = false;
-    //                 if (gameMode === "solo") {
-    //                     await sleep(show_press_gap);
-    //                     pattern = extendPattern(pattern);
-    //                     await playSeq();
-    //                     console.log("pattern:", pattern);
-    //                 } else if (gameMode === "duel") {
-    //                     status = "waiting_for_user_move";
-    //                 }
-    //             });
-    //         }
-    //     } else {
-    //         console.log("wrong color");
-    //         console.log("pattern:", pattern);
-    //         console.log("userPattern:", userPattern);
-    //         // reset game
-    //         reset();
-    //     }
-    // }
 
     function playNote(frequency: number, volume: number) {
         if (oscillator && gainNode) {
@@ -274,22 +329,33 @@
         if ($simonState.context.mode === SimonModes.Solo) {
             simonSend({ type: Events.SetMode, mode: SimonModes.Duel });
         } else if ($simonState.context.mode === SimonModes.Duel) {
+            forceHideStartButton = false;
+            closeConnection();
             simonSend({ type: Events.SetMode, mode: SimonModes.Solo });
         }
     }
 
-    function toggleConnection(mode: SimonModes) {
-        console.log(mode);
-        if (mode === SimonModes.Solo) {
-            io = null;
-        } else if (mode === SimonModes.Duel) {
-            setConnection();
-            if (!audioContextInited) {
-                initAudioContext();
-            }
-        }
-    }
+    // function toggleConnection(mode: SimonModes) {
+    //     console.log(mode);
+    //     if (mode === SimonModes.Solo) {
+    //         if (pusher != null) {
+    //             pusher.allChannels().forEach(c => pusher.unsubscribe(c.name));
+    //             pusher = null;
+    //             if (pusher_private_user_channel != null) {
+    //                 pusher_private_user_channel = null;
+    //             }
+    //         }
+    //     } else if (mode === SimonModes.Duel) {
+    //         setPusherConnection();
+    //         if (!audioContextInited) {
+    //             initAudioContext();
+    //         }
+    //     }
+    // }
 </script>
+
+<!-- https://codesandbox.io/s/nmdi4 -->
+
 
 {#each sfxs as s, i}
     <audio src="audio/{s}.mp3" preload="auto" bind:this={sfxsBinds[i]}>
@@ -298,7 +364,6 @@
 {/each}
 
 <header>
-    <p>status: {status}</p>
     <pre>
 simonState: {$simonState.value}
     mode: {$simonState.context.mode}
@@ -308,17 +373,26 @@ simonState: {$simonState.value}
     <button
         type="button"
         on:click={handleGameModeClick}
-        disabled={!$simonState.can({ type: Events.SetMode, mode: SimonModes.Duel })}
-        >
+        disabled={!$simonState.can({
+            type: Events.SetMode,
+            mode: SimonModes.Duel,
+        })}
+    >
         {$simonState.context.mode}
     </button>
     <button
         type="button"
         on:click={repeat}
-        disabled={!(status === "waiting_for_user" && $simonState.context.currentSequence.length === 0)}
+        disabled={!(
+            ($simonState.value === States.WaitingForUser &&
+                $simonState.context.currentSequence.length === 0) ||
+            $simonState.value === States.Fail ||
+            $simonState.value === States.Win
+        )}
     >
         repeat
     </button>
+    <input type="text" bind:value={input_username} />
 </header>
 
 <section>
@@ -328,13 +402,6 @@ simonState: {$simonState.value}
                 class:active={colorActive === color || allActive}
                 class="{color} pad"
                 on:click={async () => {
-                    // await padClick(color);
-
-                    // await withUserInputDisabled(async ()=>{
-                    //     await lightPad(color);
-                    //     simonSend({ type: Events.Click, opt: color });
-                    // });
-
                     await lightPad(color);
                     simonSend({ type: Events.Click, opt: color });
                 }}
@@ -343,7 +410,7 @@ simonState: {$simonState.value}
         {/each}
 
         <div class="center">
-            {#if $simonState.context.mode === SimonModes.Solo && ($simonState.value === States.Off || $simonState.value === States.Fail)}
+            {#if !forceHideStartButton && ($simonState.value === States.Off || $simonState.value === States.Fail || $simonState.value === States.Win)}
                 <button class="start" on:click={startGame}>Simon</button>
             {/if}
         </div>

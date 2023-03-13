@@ -108,7 +108,7 @@ export const simonMachine = createMachine({
             on: {
                 [Events.SetMode]: {
                     actions: assign({
-                        mode: (event) => event.mode,
+                        mode: (context, event) => event.mode,
                     }),
                 },
                 [Events.Start]: {
@@ -155,7 +155,7 @@ export const simonMachine = createMachine({
             on: {
                 [Events.SetMode]: {
                     actions: assign({
-                        mode: (event) => event.mode,
+                        mode: (context, event) => event.mode,
                     }),
                 },
                 [Events.Start]: {

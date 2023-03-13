@@ -7,7 +7,8 @@
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch"
+		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
+		"serve": "cd server && node server.js"
 	},
 	"devDependencies": {
 		"@sveltejs/adapter-auto": "^2.0.0",
@@ -22,7 +23,8 @@
 	"type": "module",
 	"dependencies": {
 		"@xstate/svelte": "^2.0.1",
-		"socket.io-client": "^4.6.1",
+		"pusher-js": "^8.0.1",
+		"simonsserver": "file:server",
 		"xstate": "^4.37.0"
 	}
 }
