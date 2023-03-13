@@ -23,7 +23,13 @@ export async function POST({ request }) {
     if (waitingList.indexOf(username) === -1) {
       waitingList.push(username);
       console.log("connecting", username);
-  
+
+      await pusher.trigger(
+        ["private-user-" + username],
+        "waiting_for_opponent",
+        {}
+      );
+
       if (waitingList.length >= 2) {
         let p1, p2;
         [p1, p2, ...waitingList] = waitingList;
@@ -37,12 +43,6 @@ export async function POST({ request }) {
             players: [p1, p2],
           }
         );
-      } else {
-        await pusher.trigger(
-          ["private-user-" + username],
-          "waiting_for_opponent",
-          {}
-        );
       }
   
       const socketId = asquery.get("socket_id");
@@ -50,9 +50,7 @@ export async function POST({ request }) {
       console.log(socketId, channel);
       const auth = pusher.authorizeChannel(socketId, channel);
       console.log("auth", auth);
-      const res = json(auth, { status: 200 });
-      console.log("res", res);
-      return res;
+      return json(auth, { status: 200 });
     } else {
       return json({}, { status: 400 });
     }
