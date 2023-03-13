@@ -154,6 +154,7 @@
 
             if (username) {
                 console.log("connecting");
+                console.log(`process.env.APP_KEY "${process.env.APP_KEY}"`);
                 // connect to Pusher:
                 pusher = new Pusher(process.env.APP_KEY!, {
                     cluster: "ap2",
