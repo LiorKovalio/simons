@@ -13,10 +13,10 @@ export const pusher = new Pusher({
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
-    console.log("here");
-    console.log(await request.text());
-    const data = await request.json();
-    const username = data.username;
+    const astext = await request.text();
+    console.log(astext);
+    const asquery = new URLSearchParams(astext);
+    const username = asquery.get("username");
 
     if (waitingList.indexOf(username) === -1) {
       waitingList.push(username);
@@ -43,8 +43,8 @@ export async function POST({ request }) {
         );
       }
   
-      const socketId = data.socket_id;
-      const channel = data.channel_name;
+      const socketId = asquery.get("socket_id");
+      const channel = asquery.get("channel_name");
       console.log(socketId, channel);
       const auth = pusher.authorizeChannel(socketId, channel);
       return auth;
