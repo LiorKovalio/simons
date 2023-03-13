@@ -157,11 +157,11 @@
                 // connect to Pusher:
                 pusher = new Pusher("9d2f5a06a2657bbdee27", {
                     cluster: "ap2",
-                    channelAuthorization: {
-                        endpoint: "/api/pusher/auth",
-                        transport: "ajax",
-                        params: { username: username },
-                    },
+                    // channelAuthorization: {
+                    //     endpoint: "/api/pusher/auth",
+                    //     transport: "ajax",
+                    //     params: { username: username },
+                    // },
                 });
                 console.log("pusher created");
 
