@@ -163,7 +163,7 @@
                     channelAuthorization: {
                         endpoint: "/api/pusher/auth",
                         params: { username: username },
-                        transport: "jsonp",
+                        transport: "ajax",
                     },
                 });
                 console.log("pusher created");
