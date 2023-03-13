@@ -4,13 +4,13 @@ import Pusher from "pusher";
 
 export const pusher = new Pusher({
   // connect to pusher
-  appId: process.env.APP_ID,
-  key: process.env.APP_KEY,
-  secret: process.env.APP_SECRET,
-  cluster: process.env.APP_CLUSTER
+  appId: process.env.APP_ID!,
+  key: process.env.APP_KEY!,
+  secret: process.env.APP_SECRET!,
+  cluster: process.env.APP_CLUSTER!
 });
 
-export default async function POST(req, res) {
+export async function POST(req, res) {
     // const username = req.body.username;
     const socketId = req.body.socket_id;
     const channel = req.body.channel_name;

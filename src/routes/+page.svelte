@@ -155,7 +155,7 @@
             if (username) {
                 console.log("connecting");
                 // connect to Pusher:
-                pusher = new Pusher("9d2f5a06a2657bbdee27", {
+                pusher = new Pusher(process.env.APP_KEY!, {
                     cluster: "ap2",
                     channelAuthorization: {
                         endpoint: "/api/pusher/auth",
