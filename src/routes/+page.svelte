@@ -6,7 +6,6 @@
 
     import Pusher from "pusher-js";
     import * as PusherTypes from "pusher-js";
-    import { APP_CLUSTER, APP_KEY } from '$env/static/private';
 
     import {
         States,
@@ -15,6 +14,9 @@
         SimonModes,
     } from "../lib/simonLogic";
     import { sleep } from "../lib/sleep";
+
+    /** @type {import('./$types').LayoutData} */
+    export let data;
 
     const {
         state: simonState,
@@ -156,8 +158,8 @@
             if (username) {
                 console.log("connecting");
                 // connect to Pusher:
-                pusher = new Pusher(APP_KEY, {
-                    cluster: APP_CLUSTER,
+                pusher = new Pusher(data.APP_KEY, {
+                    cluster: data.APP_CLUSTER,
                     channelAuthorization: {
                         endpoint: "/api/pusher/auth",
                         params: { username: username },
