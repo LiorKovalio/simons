@@ -50,7 +50,7 @@ export async function POST({ request }) {
       console.log(socketId, channel);
       const auth = pusher.authorizeChannel(socketId, channel);
       console.log("auth", auth);
-      const res = json({ auth: auth }, { status: 200 });
+      const res = json(auth, { status: 200 });
       console.log("res", res);
       return res;
     } else {
