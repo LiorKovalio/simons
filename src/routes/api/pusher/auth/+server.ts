@@ -1,3 +1,5 @@
+import { json } from '@sveltejs/kit';
+
 import Pusher from "pusher";
 import { APP_CLUSTER, APP_ID, APP_KEY, APP_SECRET } from '$env/static/private';
 
@@ -47,8 +49,8 @@ export async function POST({ request }) {
       const channel = asquery.get("channel_name");
       console.log(socketId, channel);
       const auth = pusher.authorizeChannel(socketId, channel);
-      return auth;
+      return json({ auth: auth }, { status: 200 });
     } else {
-      return 400;
+      return json({}, { status: 400 });
     }
 }
