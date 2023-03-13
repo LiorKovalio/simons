@@ -1,13 +1,14 @@
 import Pusher from "pusher";
+import { APP_CLUSTER, APP_ID, APP_KEY, APP_SECRET } from '$env/static/private';
 
 // let waitingList = [];
 
 export const pusher = new Pusher({
   // connect to pusher
-  appId: process.env.APP_ID!,
-  key: process.env.APP_KEY!,
-  secret: process.env.APP_SECRET!,
-  cluster: process.env.APP_CLUSTER!
+  appId: APP_ID,
+  key: APP_KEY,
+  secret: APP_SECRET,
+  cluster: APP_CLUSTER
 });
 
 export async function POST(req, res) {

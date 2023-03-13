@@ -6,6 +6,7 @@
 
     import Pusher from "pusher-js";
     import * as PusherTypes from "pusher-js";
+    import { APP_CLUSTER, APP_KEY } from '$env/static/private';
 
     import {
         States,
@@ -154,10 +155,9 @@
 
             if (username) {
                 console.log("connecting");
-                console.log(`process.env.APP_KEY "${process.env.APP_KEY}"`);
                 // connect to Pusher:
-                pusher = new Pusher(process.env.APP_KEY!, {
-                    cluster: "ap2",
+                pusher = new Pusher(APP_KEY, {
+                    cluster: APP_CLUSTER,
                     channelAuthorization: {
                         endpoint: "/api/pusher/auth",
                         params: { username: username },
