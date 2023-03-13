@@ -11,8 +11,9 @@ export const pusher = new Pusher({
   cluster: APP_CLUSTER
 });
 
-export async function POST(req, res) {
-    const username = req.body.username;
+export async function POST({ request }) {
+    const data = await request.json();
+    const username = data.username;
 
     if (waitingList.indexOf(username) === -1) {
       waitingList.push(username);
@@ -39,12 +40,12 @@ export async function POST(req, res) {
         );
       }
   
-      const socketId = req.body.socket_id;
-      const channel = req.body.channel_name;
+      const socketId = data.socket_id;
+      const channel = data.channel_name;
       console.log(socketId, channel);
       const auth = pusher.authorizeChannel(socketId, channel);
-      res.send(auth);
+      return auth;
     } else {
-      res.status(400);
+      return 400;
     }
 }
