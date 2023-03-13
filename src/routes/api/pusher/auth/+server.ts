@@ -13,6 +13,8 @@ export const pusher = new Pusher({
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
+    console.log("here");
+    console.log(await request.text());
     const data = await request.json();
     const username = data.username;
 
