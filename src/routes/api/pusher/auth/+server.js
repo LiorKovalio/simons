@@ -10,7 +10,7 @@ export const pusher = new Pusher({
   cluster: process.env.APP_CLUSTER
 });
 
-export default async function handler(req, res) {
+export default async function POST(req, res) {
     const username = req.body.username;
 
     if (waitingList.indexOf(username) === -1) {
