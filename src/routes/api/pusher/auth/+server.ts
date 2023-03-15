@@ -5,7 +5,7 @@ import { APP_CLUSTER, APP_ID, APP_KEY, APP_SECRET } from '$env/static/private';
 
 let waitingList: string[] = [];
 
-export const pusher = new Pusher({
+const pusher = new Pusher({
   // connect to pusher
   appId: APP_ID,
   key: APP_KEY,
@@ -18,13 +18,19 @@ export async function POST({ request }) {
     const astext = await request.text();
     console.log(astext);
     const asquery = new URLSearchParams(astext);
-    const username = asquery.get("username");
+    const username = asquery.get("username")!;
 
     let init_data: {type: string, payload: any};
 
     if (waitingList.indexOf(username) === -1) {
       waitingList.push(username);
       console.log("connecting", username);
+
+      const socketId = asquery.get("socket_id")!;
+      const channel = asquery.get("channel_name")!;
+      console.log(username, socketId, channel);
+      const auth = pusher.authorizeChannel(socketId, channel);
+      console.log("auth", auth);
 
       init_data = {type: "waiting_for_opponent", payload: {}};
 
@@ -36,11 +42,6 @@ export async function POST({ request }) {
         init_data = {type: "paired", payload: {players: [p1, p2]}};
       }
   
-      const socketId = asquery.get("socket_id")!;
-      const channel = asquery.get("channel_name")!;
-      console.log(socketId, channel);
-      const auth = pusher.authorizeChannel(socketId, channel);
-      console.log("auth", auth);
       const payload = {...auth, ...init_data};
       console.log("payload", payload);
       return json(payload, { status: 200 });

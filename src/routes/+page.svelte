@@ -115,7 +115,41 @@
         console.error("Error", "Subscription error occurred. Please restart the app");
     }
 
-    function setTransportToOther(p: string) {
+    function maybePair(username: string, event_name: string, data: {players: string[]}): boolean {
+        if (
+            $simonState.value === States.Off ||
+            $simonState.value === States.Fail ||
+            $simonState.value === States.Win
+        ) {
+            forceHideStartButton = false;
+            console.log(`got event "${event_name}" with data: ${data}`);
+            if ("players" in data && data.players.length > 0) {
+                const myTurn = data.players[0] === username;
+                console.log("myTurn?", myTurn);
+                disabled = !myTurn;
+
+                data.players.forEach((p: string) => {
+                    if (p !== username) {
+                        console.log(username, "working with", p);
+                        setTransportToOther(p, data.players);
+                    }
+                });
+
+                simonSend({
+                    type: Events.Start,
+                    myTurn: myTurn,
+                });
+                return true;
+            } else {
+                console.error("bad data. missing players");
+            }
+        } else {
+            console.error("not waiting for pairing");
+        }
+        return false;
+    }
+
+    function setTransportToOther(p: string, players: string[]) {
         const channel_name = `private-user-${p}`;
         other_subscriptions.push(channel_name);
         const pc = pusher!.subscribe(channel_name);
@@ -123,6 +157,8 @@
 
         pc.bind("pusher:subscription_succeeded", (data) => {
             console.log("opponent subscription ok: ", data);
+
+            pc.trigger("client-paired", { players: players, });
 
             pc.bind("client-ioclicked", (data) => {
                 if ($simonState.value === States.WaitingForOpponent) {
@@ -179,41 +215,20 @@
                 pusher_private_user_channel.bind("pusher:subscription_succeeded", (data) => {
                     console.log("subscription ok: ", data);
 
-                    if (data.type === "waiting_for_opponent") {
-                        console.log("waiting for opponent");
-                    }
-
-                    if (data.type === "paired") {
-                        if (
-                            $simonState.value === States.Off ||
-                            $simonState.value === States.Fail ||
-                            $simonState.value === States.Win
-                        ) {
-                            forceHideStartButton = false;
-                            console.log("got event \"paired\" with data:", data.payload);
-                            if ("players" in data.payload && data.payload.players.length > 0) {
-                                const myTurn = data.payload.players[0] === username;
-                                console.log("myTurn?", myTurn);
-                                disabled = !myTurn;
-
-                                data.payload.players.forEach((p: string) => {
-                                    if (p !== username) {
-                                        console.log(username, "working with", p);
-                                        setTransportToOther(p);
-                                    }
-                                });
-
-                                simonSend({
-                                    type: Events.Start,
-                                    myTurn: myTurn,
-                                });
-                            } else {
-                                console.error("bad data. missing players");
-                            }
-                        } else {
-                            console.error("not waiting for pairing");
+                    pusher_private_user_channel!.bind(
+                        "waiting_for_opponent",
+                        (data) => {
+                            console.log("waiting for opponent", data);
                         }
-                    }
+                    );
+
+                    pusher_private_user_channel!.bind("paired", (data: { players: string[] }) => {
+                        maybePair(username, "paired", data);
+                    });
+
+                    pusher_private_user_channel!.bind("client-paired", (data: { players: string[] }) => {
+                        maybePair(username, "client_paired", data);
+                    });
                 });
             }
         };
