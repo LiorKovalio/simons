@@ -190,6 +190,8 @@
     }
 
     onMount(async () => {
+        console.log("VITE_VERCEL_ENV", data.VITE_VERCEL_ENV);
+
         setPusherConnection = () => {
             const username = input_username === "" ? Date.now().toString() : input_username;
             console.log("username is", username);
@@ -387,12 +389,14 @@
 {/each}
 
 <header>
-    <pre>
+    {#if data.VITE_VERCEL_ENV !== "production"}
+        <pre>
 simonState: {$simonState.value}
     mode: {$simonState.context.mode}
     sequence: {$simonState.context.sequence}
     current: {$simonState.context.currentSequence}
-    </pre>
+        </pre>
+    {/if}
     <button
         type="button"
         on:click={handleGameModeClick}
