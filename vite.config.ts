@@ -4,6 +4,6 @@ import { defineConfig } from 'vite';
 export default defineConfig({
 	plugins: [sveltekit()],
 	define: {
-		__APP_ENV__: process.env.VITE_VERCEL_ENV,
+		VITE_VERCEL_ENV: process.env.VITE_VERCEL_ENV,
 	},
 });
