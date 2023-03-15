@@ -179,27 +179,24 @@
                 pusher_private_user_channel.bind("pusher:subscription_succeeded", (data) => {
                     console.log("subscription ok: ", data);
 
-                    pusher_private_user_channel!.bind(
-                        "waiting_for_opponent",
-                        (data) => {
-                            console.log("waiting for opponent", data);
-                        }
-                    );
+                    if (data.type === "waiting_for_opponent") {
+                        console.log("waiting for opponent");
+                    }
 
-                    pusher_private_user_channel!.bind("paired", (data: { players: string[] }) => {
+                    if (data.type === "paired") {
                         if (
                             $simonState.value === States.Off ||
                             $simonState.value === States.Fail ||
                             $simonState.value === States.Win
                         ) {
                             forceHideStartButton = false;
-                            console.log("got event \"paired\" with data:", data);
-                            if ("players" in data && data.players.length > 0) {
-                                const myTurn = data.players[0] === username;
+                            console.log("got event \"paired\" with data:", data.payload);
+                            if ("players" in data.payload && data.payload.players.length > 0) {
+                                const myTurn = data.payload.players[0] === username;
                                 console.log("myTurn?", myTurn);
                                 disabled = !myTurn;
 
-                                data.players.forEach((p: string) => {
+                                data.payload.players.forEach((p: string) => {
                                     if (p !== username) {
                                         console.log(username, "working with", p);
                                         setTransportToOther(p);
@@ -216,7 +213,7 @@
                         } else {
                             console.error("not waiting for pairing");
                         }
-                    });
+                    }
                 });
             }
         };

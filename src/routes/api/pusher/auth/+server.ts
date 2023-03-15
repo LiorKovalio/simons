@@ -20,37 +20,30 @@ export async function POST({ request }) {
     const asquery = new URLSearchParams(astext);
     const username = asquery.get("username");
 
+    let init_data: {type: string, payload: any};
+
     if (waitingList.indexOf(username) === -1) {
       waitingList.push(username);
       console.log("connecting", username);
 
-      await pusher.trigger(
-        ["private-user-" + username],
-        "waiting_for_opponent",
-        {}
-      );
+      init_data = {type: "waiting_for_opponent", payload: {}};
 
       if (waitingList.length >= 2) {
         let p1, p2;
         [p1, p2, ...waitingList] = waitingList;
         console.log(`pairing up {${p1} , ${p2}}`);
   
-        // trigger a message to player one and player two on their own channels
-        await pusher.trigger(
-          ["private-user-" + p1, "private-user-" + p2],
-          "paired",
-          {
-            players: [p1, p2],
-          }
-        );
+        init_data = {type: "paired", payload: {players: [p1, p2]}};
       }
   
-      const socketId = asquery.get("socket_id");
-      const channel = asquery.get("channel_name");
+      const socketId = asquery.get("socket_id")!;
+      const channel = asquery.get("channel_name")!;
       console.log(socketId, channel);
       const auth = pusher.authorizeChannel(socketId, channel);
       console.log("auth", auth);
-      return json(auth, { status: 200 });
+      const payload = {...auth, ...init_data};
+      console.log("payload", payload);
+      return json(payload, { status: 200 });
     } else {
       return json({}, { status: 400 });
     }
