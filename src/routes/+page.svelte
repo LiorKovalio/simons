@@ -44,6 +44,9 @@
                         });
                     }
                     break;
+                case States.WaitingForOpponent:
+                    disabled = true;
+                    break;
                 // case States.Win:
                 //     closeConnection();
                 //     break;
