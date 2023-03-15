@@ -186,28 +186,33 @@
                         }
                     );
 
-                    pusher_private_user_channel!.bind("paired", (data) => {
+                    pusher_private_user_channel!.bind("paired", (data: { players: string[] }) => {
                         if (
                             $simonState.value === States.Off ||
                             $simonState.value === States.Fail ||
                             $simonState.value === States.Win
                         ) {
                             forceHideStartButton = false;
-                            console.log("paired", data);
-                            const myTurn = data.players[0] === username;
-                            console.log("myTurn?", myTurn);
-                            disabled = !myTurn;
-                            simonSend({
-                                type: Events.Start,
-                                myTurn: myTurn,
-                            });
+                            console.log("got event \"paired\" with data:", data);
+                            if ("players" in data && data.players.length > 0) {
+                                const myTurn = data.players[0] === username;
+                                console.log("myTurn?", myTurn);
+                                disabled = !myTurn;
 
-                            data.players.forEach((p: string) => {
-                                if (p !== username) {
-                                    console.log(username, "working with", p);
-                                    setTransportToOther(p);
-                                }
-                            });
+                                data.players.forEach((p: string) => {
+                                    if (p !== username) {
+                                        console.log(username, "working with", p);
+                                        setTransportToOther(p);
+                                    }
+                                });
+
+                                simonSend({
+                                    type: Events.Start,
+                                    myTurn: myTurn,
+                                });
+                            } else {
+                                console.error("bad data. missing players");
+                            }
                         } else {
                             console.error("not waiting for pairing");
                         }
