@@ -190,7 +190,7 @@
     }
 
     onMount(async () => {
-        console.log("VITE_VERCEL_ENV", data.VITE_VERCEL_ENV);
+        console.log("import meta env MODE", import.meta.env.MODE);
 
         setPusherConnection = () => {
             const username = input_username === "" ? Date.now().toString() : input_username;
@@ -389,7 +389,7 @@
 {/each}
 
 <header>
-    {#if data.VITE_VERCEL_ENV !== "production"}
+    {#if !import.meta.env.PROD}
         <pre>
 simonState: {$simonState.value}
     mode: {$simonState.context.mode}
