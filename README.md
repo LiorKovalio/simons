@@ -45,14 +45,11 @@ You can preview the production build with `npm run preview`.
 ### TODO
 * add sfx for correct pattern, and for failure
 * fix focus on last pad clicked on mobile (force drop focus)
-* refactore out websockets (unsupported on vercel) in favor of an API (ably? pusher?). note open issues with socketio
-    * fix ENDPOINT to support both network, localhost and machine
+* Network tasks
+    * seperate pairing logic from auth to new API route
+        * handle re-pairing on end of game
     * handle disconnect (midgame)
-    * add option to set a name on connection
-        * allow pairing to a name
-    * API options:
-        * pusher
-        * ably
+    * allow pairing to a name
 
 ### Dreams
 * harder (after some condition):
