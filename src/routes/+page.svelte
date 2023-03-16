@@ -100,7 +100,9 @@
     let disabled = true;
     let allActive = false;
     let colorActive = "";
+    let duel_status: "off"|"subscribed"|"playing" = "off"
     let input_username = "";
+    let paired_players: string[] = [];
 
     // audio vars, inited on onMount. see "onMount audioContext"
     let oscillator: OscillatorNode | null;
@@ -124,6 +126,7 @@
             $simonState.value === States.Fail ||
             $simonState.value === States.Win
         ) {
+            duel_status = "playing";
             forceHideStartButton = false;
             console.log(`got event "${event_name}" with data: ${data}`);
             if ("players" in data && data.players.length > 0) {
@@ -131,6 +134,7 @@
                 console.log("myTurn?", myTurn);
                 disabled = !myTurn;
 
+                paired_players = data.players;
                 data.players.forEach((p: string) => {
                     if (p !== username) {
                         console.log(username, "working with", p);
@@ -219,6 +223,7 @@
                 // subscription to their own channel succeeded
                 pusher_private_user_channel.bind("pusher:subscription_succeeded", (data) => {
                     console.log("subscription ok: ", data);
+                    duel_status = "subscribed";
 
                     pusher_private_user_channel!.bind(
                         "waiting_for_opponent",
@@ -419,7 +424,19 @@ simonState: {$simonState.value}
     >
         repeat
     </button>
-    <input type="text" bind:value={input_username} />
+    {#if $simonState.context.mode === SimonModes.Duel}
+        <br />
+        <input type="text" bind:value={input_username} placeholder="username:" />
+        <br />
+        <pre>
+duel_status: {duel_status}
+input_username: {input_username}
+players: {paired_players}
+
+simonState: {$simonState.value}
+    mode: {$simonState.context.mode}
+        </pre>
+    {/if}
 </header>
 
 <section>
