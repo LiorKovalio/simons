@@ -100,7 +100,7 @@
     let disabled = true;
     let allActive = false;
     let colorActive = "";
-    let duel_status: "off"|"subscribed"|"playing" = "off"
+    let duel_status: "off" | "subscribed" | "playing" = "off";
     let input_username = "";
     let paired_players: string[] = [];
 
@@ -117,10 +117,17 @@
     let pusher_private_user_channel: PusherTypes.Channel | null = null;
     let other_subscriptions: string[] = [];
     function onPusherSubscriptionError(status) {
-        console.error("Error", "Subscription error occurred. Please restart the app");
+        console.error(
+            "Error",
+            "Subscription error occurred. Please restart the app"
+        );
     }
 
-    function maybePair(username: string, event_name: string, data: {players: string[]}): boolean {
+    function maybePair(
+        username: string,
+        event_name: string,
+        data: { players: string[] }
+    ): boolean {
         if (
             $simonState.value === States.Off ||
             $simonState.value === States.Fail ||
@@ -165,7 +172,7 @@
         pc.bind("pusher:subscription_succeeded", (data) => {
             console.log("opponent subscription ok: ", data);
 
-            pc.trigger("client-paired", { players: players, });
+            pc.trigger("client-paired", { players: players });
 
             pc.bind("client-ioclicked", (data) => {
                 if ($simonState.value === States.WaitingForOpponent) {
@@ -184,9 +191,7 @@
     let setPusherConnection = () => {};
     function closeConnection() {
         if (pusher != null) {
-            other_subscriptions.forEach((name) =>
-                pusher!.unsubscribe(name)
-            );
+            other_subscriptions.forEach((name) => pusher!.unsubscribe(name));
             other_subscriptions = [];
             pusher.disconnect();
             pusher = null;
@@ -197,7 +202,8 @@
         console.log("import meta env MODE", import.meta.env.MODE);
 
         setPusherConnection = () => {
-            const username = input_username === "" ? Date.now().toString() : input_username;
+            const username =
+                input_username === "" ? Date.now().toString() : input_username;
             console.log("username is", username);
 
             if (username) {
@@ -218,28 +224,40 @@
                 ); // subscribe to user's unique channel
 
                 // subscription error occurred
-                pusher_private_user_channel.bind("pusher:subscription_error", onPusherSubscriptionError);
+                pusher_private_user_channel.bind(
+                    "pusher:subscription_error",
+                    onPusherSubscriptionError
+                );
 
                 // subscription to their own channel succeeded
-                pusher_private_user_channel.bind("pusher:subscription_succeeded", (data) => {
-                    console.log("subscription ok: ", data);
-                    duel_status = "subscribed";
+                pusher_private_user_channel.bind(
+                    "pusher:subscription_succeeded",
+                    (data) => {
+                        console.log("subscription ok: ", data);
+                        duel_status = "subscribed";
 
-                    pusher_private_user_channel!.bind(
-                        "waiting_for_opponent",
-                        (data) => {
-                            console.log("waiting for opponent", data);
-                        }
-                    );
+                        pusher_private_user_channel!.bind(
+                            "waiting_for_opponent",
+                            (data) => {
+                                console.log("waiting for opponent", data);
+                            }
+                        );
 
-                    pusher_private_user_channel!.bind("paired", (data: { players: string[] }) => {
-                        maybePair(username, "paired", data);
-                    });
+                        pusher_private_user_channel!.bind(
+                            "paired",
+                            (data: { players: string[] }) => {
+                                maybePair(username, "paired", data);
+                            }
+                        );
 
-                    pusher_private_user_channel!.bind("client-paired", (data: { players: string[] }) => {
-                        maybePair(username, "client_paired", data);
-                    });
-                });
+                        pusher_private_user_channel!.bind(
+                            "client-paired",
+                            (data: { players: string[] }) => {
+                                maybePair(username, "client_paired", data);
+                            }
+                        );
+                    }
+                );
             }
         };
 
@@ -391,7 +409,6 @@
 
 <!-- https://codesandbox.io/s/nmdi4 -->
 
-
 {#each sfxs as s, i}
     <audio src="audio/{s}.mp3" preload="auto" bind:this={sfxsBinds[i]}>
         <track kind="captions" />
@@ -431,7 +448,11 @@ simonState: {$simonState.value}
     </button>
     {#if $simonState.context.mode === SimonModes.Duel}
         <br />
-        <input type="text" bind:value={input_username} placeholder="username:" />
+        <input
+            type="text"
+            bind:value={input_username}
+            placeholder="username:"
+        />
         <br />
         <pre>
 duel_status: {duel_status}
