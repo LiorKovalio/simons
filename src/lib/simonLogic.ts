@@ -1,4 +1,4 @@
-import { createMachine, assign, interpret  } from 'xstate';
+import { createMachine, assign } from 'xstate';
 
 function getRandomOpt(range: number) {
     return Math.floor(Math.random() * range);
@@ -26,6 +26,7 @@ export const enum Events {
     Start = "Start",
     Click = "Click",
     SetMode = "SetMode",
+    SetSequence = "SetSequence",
 }
 
 export const enum SimonModes {
@@ -40,8 +41,8 @@ function isClickCorrect(sequence: string[], currentSequence: string[], click: st
 export const simonMachine = createMachine({
     predictableActionArguments: true,
     schema: {
-        context: {} as { opts: string[], mode: SimonModes, sequence: string[], currentSequence: string[] },
-        events: {} as { type: Events.Start, myTurn?: boolean } | { type: Events.Click, opt: string } | { type: Events.SetMode, mode: SimonModes }
+        context: {} as { opts: string[], mode: SimonModes, sequence: string[], currentSequence: string[], useExistingSequence: boolean },
+        events: {} as { type: Events.Start, myTurn?: boolean } | { type: Events.Click, opt: string } | { type: Events.SetMode, mode: SimonModes } | { type: Events.SetSequence, sequence: string[] }
     },
     initial: States.Off,
     context: {
@@ -49,6 +50,7 @@ export const simonMachine = createMachine({
         mode: SimonModes.Solo,
         sequence: [],
         currentSequence: [],
+        useExistingSequence: false,
     },
     states: {
         [States.Off]: {
@@ -56,13 +58,25 @@ export const simonMachine = createMachine({
                 [Events.SetMode]: {
                     actions: assign({
                         mode: (context, event) => event.mode,
+                        useExistingSequence: false,
+                    }),
+                },
+                [Events.SetSequence]: {
+                    actions: assign({
+                        sequence: (context, event) => event.sequence,
+                        useExistingSequence: true,
                     }),
                 },
                 [Events.Start]: [
                     {
+                        target: States.WaitingForUser,
+                        actions: assign({ currentSequence: [], }),
+                        cond: (context, event) => context.useExistingSequence
+                    },
+                    {
                         target: States.Working,
                         actions: assign({ currentSequence: [], sequence: [] }),
-                        cond: (context, event) => event.myTurn === undefined || event.myTurn === true 
+                        cond: (context, event) => event.myTurn === undefined || event.myTurn === true
                     },
                     {
                         target: States.WaitingForOpponent,
@@ -75,6 +89,11 @@ export const simonMachine = createMachine({
         [States.WaitingForUser]: {
             on: {
                 [Events.Click]: [
+                    {
+                        target: States.Win,
+                        actions: assign({ currentSequence: (context, event) => [...context.currentSequence, event.opt] }),
+                        cond: (context, event) => context.useExistingSequence && context.sequence.length === context.currentSequence.length + 1 && isClickCorrect(context.sequence, context.currentSequence, event.opt),
+                    },
                     {
                         target: States.Working,
                         actions: assign({ currentSequence: (context, event) => [...context.currentSequence, event.opt] }),
@@ -109,6 +128,13 @@ export const simonMachine = createMachine({
                 [Events.SetMode]: {
                     actions: assign({
                         mode: (context, event) => event.mode,
+                        useExistingSequence: false,
+                    }),
+                },
+                [Events.SetSequence]: {
+                    actions: assign({
+                        sequence: (context, event) => event.sequence,
+                        useExistingSequence: true,
                     }),
                 },
                 [Events.Start]: {
@@ -156,6 +182,13 @@ export const simonMachine = createMachine({
                 [Events.SetMode]: {
                     actions: assign({
                         mode: (context, event) => event.mode,
+                        useExistingSequence: false,
+                    }),
+                },
+                [Events.SetSequence]: {
+                    actions: assign({
+                        sequence: (context, event) => event.sequence,
+                        useExistingSequence: true,
                     }),
                 },
                 [Events.Start]: {
