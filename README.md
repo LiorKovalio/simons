@@ -44,7 +44,6 @@ You can preview the production build with `npm run preview`.
 
 ### TODO
 * add sfx for correct pattern, and for failure
-* fix focus on last pad clicked on mobile (force drop focus)
 * Network tasks
     * seperate pairing logic from auth to new API route
         * handle re-pairing on end of game

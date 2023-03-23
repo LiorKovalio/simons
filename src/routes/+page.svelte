@@ -365,23 +365,28 @@
         }
     }
 
-    // function toggleConnection(mode: SimonModes) {
-    //     console.log(mode);
-    //     if (mode === SimonModes.Solo) {
-    //         if (pusher != null) {
-    //             pusher.allChannels().forEach(c => pusher.unsubscribe(c.name));
-    //             pusher = null;
-    //             if (pusher_private_user_channel != null) {
-    //                 pusher_private_user_channel = null;
-    //             }
-    //         }
-    //     } else if (mode === SimonModes.Duel) {
-    //         setPusherConnection();
-    //         if (!audioContextInited) {
-    //             initAudioContext();
-    //         }
-    //     }
-    // }
+    import ArcButton from "../lib/ArcButton.svelte";
+    const degs = [270, 0, 180, 90];
+    const border_color = "#c4bebb";
+    const device_size = "60vmin";
+    const optProps = {
+        red: {
+            color: "#E52521",
+            active: "#ff462b",
+        },
+        green: {
+            color: "#43B047",
+            active: "#00f36f",
+        },
+        yellow: {
+            color: "#FBD000",
+            active: "#ffe41e",
+        },
+        blue: {
+            color: "#049CD8",
+            active: "#00a4fb",
+        },
+    };
 </script>
 
 <!-- https://codesandbox.io/s/nmdi4 -->
@@ -415,7 +420,7 @@ simonState: {$simonState.value}
     <button
         type="button"
         on:click={repeat}
-        disabled={!(
+        disabled={disabled || !(
             ($simonState.value === States.WaitingForUser &&
                 $simonState.context.currentSequence.length === 0) ||
             $simonState.value === States.Fail ||
@@ -439,17 +444,32 @@ simonState: {$simonState.value}
     {/if}
 </header>
 
-<section>
-    <div id="circle" class="circle">
-        {#each $simonState.context.opts as color}
-            <button
-                class:active={colorActive === color || allActive}
-                class="{color} pad"
+<section
+    style:--borders-color={border_color}
+    style:--device-size={device_size}
+    style:--pad_size="calc({device_size}/2)"
+>
+    <div
+        id="circle"
+        class="circle"
+        style:display="block"
+        style:outline="50px solid var(--borders-color)"
+    >
+        {#each $simonState.context.opts as color, i}
+            {@const { color: fgcolor, active: activecolor } = optProps[color]}
+            <ArcButton
+                {fgcolor}
+                bgcolor={border_color}
+                {activecolor}
+                size="var(--pad_size)"
+                radius="310px"
+                rotation="{degs[i]}deg"
+                active={colorActive === color || allActive}
+                bind:disabled
                 on:click={async () => {
                     await lightPad(color);
                     simonSend({ type: Events.Click, opt: color });
                 }}
-                {disabled}
             />
         {/each}
 
@@ -474,26 +494,22 @@ simonState: {$simonState.value}
         transform: translate(-50%, -50%);
     }
     .circle {
-        --size: 60vmin;
-        --borders-size: 2.5vmin;
-        --borders-color: #58224f;
         font-size: 7vmin;
-        height: var(--size);
-        width: var(--size);
+        height: var(--device-size);
+        width: var(--device-size);
         background-color: var(--borders-color);
         border-radius: 50%;
-        overflow: hidden;
-        display: grid;
-        grid-gap: var(--borders-size);
         position: relative;
-        box-shadow: 0 0 0px var(--borders-size) var(--borders-color);
-        grid-template-areas:
-            "green red"
-            "yellow blue";
     }
 
     .start {
         cursor: pointer;
+        background-color: #9a2257;
+        color: white;
+        border-radius: 50%;
+        width: calc(var(--pad_size) / 2);
+        aspect-ratio: 1;
+        border: none;
     }
 
     .center {
@@ -511,44 +527,5 @@ simonState: {$simonState.value}
         align-items: center;
         justify-content: center;
         flex-direction: column;
-    }
-
-    .pad {
-        --radius: 310px;
-        cursor: pointer;
-        transition: all 100ms linear;
-        background-color: #3b0063;
-        border-style: none;
-    }
-    .pad:disabled {
-        filter: saturate(0);
-    }
-
-    .pad.active,
-    .pad:hover {
-        filter: saturate(3);
-    }
-    .green {
-        grid-area: green;
-        background-color: #1bd871;
-        border-radius: var(--radius) 0 0 0;
-    }
-
-    .blue {
-        grid-area: blue;
-        background-color: #209adb;
-        border-radius: 0 0 var(--radius) 0;
-    }
-
-    .red {
-        grid-area: red;
-        background-color: #fa4a30;
-        border-radius: 0 var(--radius) 0px 0;
-    }
-
-    .yellow {
-        grid-area: yellow;
-        background-color: #f2da2b;
-        border-radius: 0 0 0 var(--radius);
     }
 </style>
