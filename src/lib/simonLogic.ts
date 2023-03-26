@@ -4,9 +4,9 @@ function getRandomOpt(range: number) {
     return Math.floor(Math.random() * range);
 }
 
-function extendPattern(pattern: string[], opts: string[]) {
-    const randomColor = opts[getRandomOpt(opts.length)];
-    return [...pattern, randomColor];
+function extendPattern(pattern: string[], opts: string[], step: number = 1) {
+    const extension = [...Array(step)].map(_ => opts[getRandomOpt(opts.length)]);
+    return [...pattern, ...extension];
 }
 
 export const enum States {
@@ -27,6 +27,7 @@ export const enum Events {
     Click = "Click",
     SetMode = "SetMode",
     SetSequence = "SetSequence",
+    SetStep = "SetStep",
 }
 
 export const enum SimonModes {
@@ -38,13 +39,18 @@ function isClickCorrect(sequence: string[], currentSequence: string[], click: st
     return sequence[currentSequence.length] === click;
 }
 
-function predefinedSequence(seq: string[]): (p: string[], opts: string[]) => string[] {
+function predefinedSequence(seq: string[]): (p: string[], opts: string[], step: number) => string[] {
     seq = seq.reverse();
-    return (p: string[], opts: string[]) => {
-        if (seq.length > 0) {
-            return [...p, seq.pop()!];
+    return (p: string[], opts: string[], step: number) => {
+        let extension = [];
+        for (let i = 0; i < step; i++) {
+            if (seq.length > 0) {
+                extension.push(seq.pop()!);
+            } else {
+                break;
+            }
         }
-        return p;
+        return [...p, ...extension];
     }
 }
 
@@ -65,8 +71,8 @@ function setSequence(context, event) {
 export const simonMachine = createMachine({
     predictableActionArguments: true,
     schema: {
-        context: {} as { opts: string[], mode: SimonModes, sequence: string[], currentSequence: string[], extendFunc: (sequence: string[], opts: string[]) => string[], maxSequenceLength: number },
-        events: {} as { type: Events.Start, myTurn?: boolean } | { type: Events.Click, opt: string } | { type: Events.SetMode, mode: SimonModes } | { type: Events.SetSequence, sequence: string[] }
+        context: {} as { opts: string[], mode: SimonModes, sequence: string[], currentSequence: string[], extendFunc: (sequence: string[], opts: string[], step: number) => string[], maxSequenceLength: number, step: number },
+        events: {} as { type: Events.Start, myTurn?: boolean } | { type: Events.Click, opt: string } | { type: Events.SetMode, mode: SimonModes } | { type: Events.SetSequence, sequence: string[] } | { type: Events.SetStep, step: number }
     },
     initial: States.Off,
     context: {
@@ -76,6 +82,7 @@ export const simonMachine = createMachine({
         currentSequence: [],
         extendFunc: extendPattern,
         maxSequenceLength: -1,
+        step: 1,
     },
     states: {
         [States.Off]: {
@@ -127,7 +134,7 @@ export const simonMachine = createMachine({
                 {
                     target: States.WaitingForUser,
                     actions: assign({
-                        sequence: (context, event) => context.extendFunc(context.sequence, context.opts),
+                        sequence: (context, event) => context.extendFunc(context.sequence, context.opts, context.step),
                         currentSequence: [],
                     }),
                     cond: (context, event) => context.mode === SimonModes.Solo
@@ -206,6 +213,16 @@ export const simonMachine = createMachine({
             },
         },
 
+    },
+    on: {
+        [Events.SetStep]: {
+            actions: [
+                assign({
+                    step: (context, event) => event.step,
+                }),
+                (context, event) => console.log(context)
+            ],
+        },
     },
 });
 

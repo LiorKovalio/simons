@@ -104,6 +104,9 @@
     let input_username = "";
     let paired_players: string[] = [];
 
+    let step = 1;
+    $: simonSend({ type: Events.SetStep, step: step });
+
     // audio vars, inited on onMount. see "onMount audioContext"
     let oscillator: OscillatorNode | null;
     let gainNode: GainNode | null;
@@ -391,11 +394,13 @@
                 forceHideStartButton = false;
                 closeConnection();
                 simonSend({ type: Events.SetMode, mode: SimonModes.Solo });
-                simonSend({ type: Events.SetSequence, sequence: [], });
+                simonSend({ type: Events.SetSequence, sequence: [] });
                 break;
             case SimonModes.Duel:
                 simonSend({ type: Events.SetMode, mode: SimonModes.Duel });
-                simonSend({ type: Events.SetSequence, sequence: [], });
+                simonSend({ type: Events.SetSequence, sequence: [] });
+                step = 1;
+                simonSend({ type: Events.SetStep, step: step });
                 break;
             case "daily":
                 console.debug("daily");
@@ -528,6 +533,19 @@
                 Duel
             </SettingsButton>
         </div>
+
+        {#if $simonState.context.mode === SimonModes.Solo}
+            <p>
+                <label for="settingsStepSize">Step:</label>
+                <input
+                    id="settingsStepSize"
+                    type="number"
+                    placeholder="step:"
+                    min="1"
+                    bind:value={step}
+                />
+            </p>
+        {/if}
 
         <SettingsButton
             on:click={() => {
