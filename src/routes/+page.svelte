@@ -391,9 +391,11 @@
                 forceHideStartButton = false;
                 closeConnection();
                 simonSend({ type: Events.SetMode, mode: SimonModes.Solo });
+                simonSend({ type: Events.SetSequence, sequence: [], });
                 break;
             case SimonModes.Duel:
                 simonSend({ type: Events.SetMode, mode: SimonModes.Duel });
+                simonSend({ type: Events.SetSequence, sequence: [], });
                 break;
             case "daily":
                 console.debug("daily");

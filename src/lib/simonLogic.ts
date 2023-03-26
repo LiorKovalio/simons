@@ -38,10 +38,34 @@ function isClickCorrect(sequence: string[], currentSequence: string[], click: st
     return sequence[currentSequence.length] === click;
 }
 
+function predefinedSequence(seq: string[]): (p: string[], opts: string[]) => string[] {
+    seq = seq.reverse();
+    return (p: string[], opts: string[]) => {
+        if (seq.length > 0) {
+            return [...p, seq.pop()!];
+        }
+        return p;
+    }
+}
+
+function setSequence(context, event) {
+    if (event.sequence.length === 0) {
+        return {
+            extendFunc: extendPattern,
+            maxSequenceLength: -1,
+        }
+    } else {
+        return {
+            extendFunc: predefinedSequence(event.sequence),
+            maxSequenceLength: event.sequence.length,
+        }
+    }
+}
+
 export const simonMachine = createMachine({
     predictableActionArguments: true,
     schema: {
-        context: {} as { opts: string[], mode: SimonModes, sequence: string[], currentSequence: string[], useExistingSequence: boolean },
+        context: {} as { opts: string[], mode: SimonModes, sequence: string[], currentSequence: string[], extendFunc: (sequence: string[], opts: string[]) => string[], maxSequenceLength: number },
         events: {} as { type: Events.Start, myTurn?: boolean } | { type: Events.Click, opt: string } | { type: Events.SetMode, mode: SimonModes } | { type: Events.SetSequence, sequence: string[] }
     },
     initial: States.Off,
@@ -50,7 +74,8 @@ export const simonMachine = createMachine({
         mode: SimonModes.Solo,
         sequence: [],
         currentSequence: [],
-        useExistingSequence: false,
+        extendFunc: extendPattern,
+        maxSequenceLength: -1,
     },
     states: {
         [States.Off]: {
@@ -58,21 +83,12 @@ export const simonMachine = createMachine({
                 [Events.SetMode]: {
                     actions: assign({
                         mode: (context, event) => event.mode,
-                        useExistingSequence: false,
                     }),
                 },
                 [Events.SetSequence]: {
-                    actions: assign({
-                        sequence: (context, event) => event.sequence,
-                        useExistingSequence: true,
-                    }),
+                    actions: assign(setSequence),
                 },
                 [Events.Start]: [
-                    {
-                        target: States.WaitingForUser,
-                        actions: assign({ currentSequence: [], }),
-                        cond: (context, event) => context.useExistingSequence
-                    },
                     {
                         target: States.Working,
                         actions: assign({ currentSequence: [], sequence: [] }),
@@ -90,11 +106,6 @@ export const simonMachine = createMachine({
             on: {
                 [Events.Click]: [
                     {
-                        target: States.Win,
-                        actions: assign({ currentSequence: (context, event) => [...context.currentSequence, event.opt] }),
-                        cond: (context, event) => context.useExistingSequence && context.sequence.length === context.currentSequence.length + 1 && isClickCorrect(context.sequence, context.currentSequence, event.opt),
-                    },
-                    {
                         target: States.Working,
                         actions: assign({ currentSequence: (context, event) => [...context.currentSequence, event.opt] }),
                         cond: (context, event) => context.sequence.length === context.currentSequence.length + 1 && isClickCorrect(context.sequence, context.currentSequence, event.opt),
@@ -110,9 +121,13 @@ export const simonMachine = createMachine({
         [States.Working]: {
             always: [
                 {
+                    target: States.Win,
+                    cond: (context, event) => context.mode === SimonModes.Solo && context.maxSequenceLength > 0 && context.maxSequenceLength === context.sequence.length
+                },
+                {
                     target: States.WaitingForUser,
                     actions: assign({
-                        sequence: (context, event) => extendPattern(context.sequence, context.opts),
+                        sequence: (context, event) => context.extendFunc(context.sequence, context.opts),
                         currentSequence: [],
                     }),
                     cond: (context, event) => context.mode === SimonModes.Solo
@@ -128,14 +143,10 @@ export const simonMachine = createMachine({
                 [Events.SetMode]: {
                     actions: assign({
                         mode: (context, event) => event.mode,
-                        useExistingSequence: false,
                     }),
                 },
                 [Events.SetSequence]: {
-                    actions: assign({
-                        sequence: (context, event) => event.sequence,
-                        useExistingSequence: true,
-                    }),
+                    actions: assign(setSequence),
                 },
                 [Events.Start]: {
                     target: States.Working,
@@ -182,14 +193,10 @@ export const simonMachine = createMachine({
                 [Events.SetMode]: {
                     actions: assign({
                         mode: (context, event) => event.mode,
-                        useExistingSequence: false,
                     }),
                 },
                 [Events.SetSequence]: {
-                    actions: assign({
-                        sequence: (context, event) => event.sequence,
-                        useExistingSequence: true,
-                    }),
+                    actions: assign(setSequence),
                 },
                 [Events.Start]: {
                     target: States.Working,
