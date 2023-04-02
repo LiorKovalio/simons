@@ -427,6 +427,9 @@
                 return response.json();
             })
             .then((data) => {
+                if (data.warnings && data.warnings.length > 0) {
+                    console.warn({ fetch: { sent: body, warn: data.warnings } });
+                }
                 console.log({ fetch: { sent: body, got: data } });
                 return data.sequence;
             });
@@ -524,7 +527,7 @@
                     mode: SimonModes.Solo,
                 })}
             >
-                Daily
+                Daily 10
             </SettingsButton>
             <SettingsButton
                 btnClass={!isDaily &&

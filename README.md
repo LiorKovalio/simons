@@ -50,7 +50,8 @@ You can preview the production build with `npm run preview`.
     * handle disconnect (midgame)
     * allow pairing to a name
 * sequence of the day - daily memory exercise
-    * limit size. maybe limit to specific sizes (daily5, daily10 etc.)
+    * maybe set multiple sizes (daily5, daily15 etc.)
+    * should the user get all daily at once, or one-by-one?
 * fix iphone UI (circles are squares)
 
 ### Dreams
