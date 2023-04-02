@@ -463,6 +463,8 @@
     // https://flowbite-svelte.com/components/drawer
     import { Drawer, CloseButton } from "flowbite-svelte";
     import { sineIn } from "svelte/easing";
+    import CircleProgressBar from "$lib/CircleProgressBar.svelte";
+    import { scale } from "svelte/transition";
 
     let hidden1 = true;
     let transitionParamsTop = {
@@ -470,6 +472,11 @@
         duration: 200,
         easing: sineIn,
     };
+    $: progress =
+        $simonState.context.currentSequence.length /
+        ($simonState.context.sequence.length +
+            ($simonState.context.mode === SimonModes.Duel ? 1 : 0));
+    $: progress_ring_color = $simonState.context.sequence.length === $simonState.context.currentSequence.length ? "black" : "gainsboro";
 </script>
 
 <!-- https://codesandbox.io/s/nmdi4 -->
@@ -637,11 +644,24 @@ current: {$simonState.context.currentSequence}</pre>
         {/each}
 
         <div class="center">
-            {#if !forceHideStartButton && ($simonState.value === States.Off || $simonState.value === States.Fail || $simonState.value === States.Win)}
-                <button class="start text-base" on:click={startGame}
-                    >Simon</button
-                >
-            {/if}
+            <div class="transition-container">
+                {#if !forceHideStartButton && ($simonState.value === States.Off || $simonState.value === States.Fail || $simonState.value === States.Win)}
+                    <button
+                        class="start text-base"
+                        on:click={startGame}
+                        transition:scale>Simon</button
+                    >
+                {:else}
+                    <div transition:scale>
+                        <CircleProgressBar
+                            color="var(--device-color1)"
+                            ringcolor={progress_ring_color}
+                            width="calc(var(--pad_size) / 2)"
+                            bind:progress
+                        />
+                    </div>
+                {/if}
+            </div>
         </div>
     </div>
 </section>
@@ -715,5 +735,20 @@ current: {$simonState.context.currentSequence}</pre>
         align-items: center;
         justify-content: center;
         flex-direction: column;
+    }
+
+    /*
+        Make items that share space transition well
+        https://imfeld.dev/writing/svelte_overlapping_transitions
+    */
+    .transition-container {
+        display: grid;
+        grid-template-rows: 1fr;
+        grid-template-columns: 1fr;
+    }
+
+    .transition-container > * {
+        grid-row: 1;
+        grid-column: 1;
     }
 </style>

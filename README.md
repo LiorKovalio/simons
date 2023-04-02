@@ -49,6 +49,9 @@ You can preview the production build with `npm run preview`.
         * handle re-pairing on end of game
     * handle disconnect (midgame)
     * allow pairing to a name
+* sequence of the day - daily memory exercise
+    * limit size. maybe limit to specific sizes (daily5, daily10 etc.)
+* fix iphone UI (circles are squares)
 
 ### Dreams
 * harder (after some condition):
@@ -57,4 +60,5 @@ You can preview the production build with `npm run preview`.
 * more players (more than 2, maybe it's fun)
 * pc player
 * export sequence (say it's a nice tune)
-* sequence of the day - daily memory exrecise
+* consider tempo
+* consider a time limit for a click
