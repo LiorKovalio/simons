@@ -47,14 +47,27 @@
                 case States.WaitingForOpponent:
                     disabled = true;
                     break;
-                // case States.Win:
-                //     closeConnection();
-                //     break;
-                // case States.Fail:
-                //     if (state.context.mode === SimonModes.Duel) {
-                //         closeConnection();
-                //     }
-                //     break;
+                case States.Win:
+                case States.Fail:
+                    if (pusher_private_user_channel != null) {
+                        console.log("trigger", "client-ioendgame", {
+                            state: state.value,
+                            sequence: state.context.sequence,
+                            currentSequence: state.context.currentSequence,
+                        });
+                        pusher_private_user_channel.trigger(
+                            "client-ioendgame",
+                            {
+                                state: state.value,
+                                sequence: state.context.sequence,
+                                currentSequence: state.context.currentSequence,
+                            }
+                        );
+                    }
+                    unsubscribe();
+                    unsubscribe_me();
+                    forceHideStartButton = false;
+                    break;
                 default:
                     break;
             }
@@ -91,6 +104,10 @@
             }
         })
         .start();
+    $: is_game_off =
+        $simonState.value === States.Off ||
+        $simonState.value === States.Fail ||
+        $simonState.value === States.Win;
 
     let sfxs = ["a4", "c4", "e4", "g4"];
     let notes = [440, 261, 329, 392];
@@ -100,7 +117,6 @@
     let disabled = true;
     let allActive = false;
     let colorActive = "";
-    let duel_status: "off" | "subscribed" | "playing" = "off";
     let input_username = "";
     let paired_players: string[] = [];
 
@@ -131,15 +147,10 @@
         event_name: string,
         data: { players: string[] }
     ): boolean {
-        if (
-            $simonState.value === States.Off ||
-            $simonState.value === States.Fail ||
-            $simonState.value === States.Win
-        ) {
-            duel_status = "playing";
+        if (is_game_off) {
             forceHideStartButton = false;
-            console.log(`got event "${event_name}" with data: ${data}`);
-            if ("players" in data && data.players.length > 0) {
+            console.log(`got event "${event_name}" with data:`, data);
+            if ("players" in data && data.players.length > 1) {
                 const myTurn = data.players[0] === username;
                 console.log("myTurn?", myTurn);
                 disabled = !myTurn;
@@ -179,23 +190,46 @@
 
             pc.bind("client-ioclicked", (data) => {
                 if ($simonState.value === States.WaitingForOpponent) {
-                    console.log(`opponent clicked : "${data.opt}"`);
+                    console.log(`opponent (${p}) clicked : "${data.opt}"`);
                     simonSend({
                         type: Events.Click,
                         opt: data.opt,
                     });
                 } else {
-                    console.error("not expecting opponent play");
+                    console.error(`not expecting opponent (${p}) play`);
                 }
+            });
+
+            pc.bind("client-ioendgame", (data) => {
+                console.log(`opponent (${p}) endgame:`, data);
+                unsubscribe();
+                unsubscribe_me();
+                forceHideStartButton = false;
             });
         });
     }
 
-    let setPusherConnection = () => {};
+    let setPusherConnection: () => string | null = () => {
+        return null;
+    };
+
+    function unsubscribe() {
+        other_subscriptions.forEach((name) => pusher?.unsubscribe(name));
+        other_subscriptions = [];
+        paired_players = [];
+    }
+
+    function unsubscribe_me() {
+        if (pusher !== null && pusher_private_user_channel !== null) {
+            pusher.unsubscribe(pusher_private_user_channel.name);
+            pusher_private_user_channel = null;
+            is_connected = false;
+        }
+    }
+
     function closeConnection() {
         if (pusher != null) {
-            other_subscriptions.forEach((name) => pusher!.unsubscribe(name));
-            other_subscriptions = [];
+            unsubscribe();
             pusher.disconnect();
             pusher = null;
         }
@@ -212,56 +246,55 @@
             if (username) {
                 console.log("connecting");
                 // connect to Pusher:
-                pusher = new Pusher(data.APP_KEY, {
-                    cluster: data.APP_CLUSTER,
-                    channelAuthorization: {
-                        endpoint: "/api/pusher/auth",
-                        params: { username: username },
-                        transport: "ajax",
-                    },
-                });
-                console.log("pusher created");
+                if (pusher === null) {
+                    pusher = new Pusher(data.APP_KEY, {
+                        cluster: data.APP_CLUSTER,
+                        channelAuthorization: {
+                            endpoint: "/api/pusher/auth",
+                            params: { username: username },
+                            transport: "ajax",
+                        },
+                    });
+                    console.log("pusher created");
+                }
 
-                pusher_private_user_channel = pusher.subscribe(
-                    `private-user-${username}`
-                ); // subscribe to user's unique channel
+                const pusher_private_user_channel_name = `private-user-${username}`;
+                if (
+                    pusher_private_user_channel === null ||
+                    pusher_private_user_channel.name !==
+                        pusher_private_user_channel_name
+                ) {
+                    console.log(
+                        `subscribing to ${pusher_private_user_channel_name}`
+                    );
 
-                // subscription error occurred
-                pusher_private_user_channel.bind(
-                    "pusher:subscription_error",
-                    onPusherSubscriptionError
-                );
+                    pusher_private_user_channel = pusher.subscribe(
+                        `private-user-${username}`
+                    ); // subscribe to user's unique channel
 
-                // subscription to their own channel succeeded
-                pusher_private_user_channel.bind(
-                    "pusher:subscription_succeeded",
-                    (data) => {
-                        console.log("subscription ok: ", data);
-                        duel_status = "subscribed";
+                    // subscription error occurred
+                    pusher_private_user_channel.bind(
+                        "pusher:subscription_error",
+                        onPusherSubscriptionError
+                    );
 
-                        pusher_private_user_channel!.bind(
-                            "waiting_for_opponent",
-                            (data) => {
-                                console.log("waiting for opponent", data);
-                            }
-                        );
+                    // subscription to their own channel succeeded
+                    pusher_private_user_channel.bind(
+                        "pusher:subscription_succeeded",
+                        async (data) => {
+                            console.log("subscription ok: ", data);
 
-                        pusher_private_user_channel!.bind(
-                            "paired",
-                            (data: { players: string[] }) => {
-                                maybePair(username, "paired", data);
-                            }
-                        );
-
-                        pusher_private_user_channel!.bind(
-                            "client-paired",
-                            (data: { players: string[] }) => {
-                                maybePair(username, "client_paired", data);
-                            }
-                        );
-                    }
-                );
+                            pusher_private_user_channel!.bind(
+                                "client-paired",
+                                (data: { players: string[] }) => {
+                                    maybePair(username, "client_paired", data);
+                                }
+                            );
+                        }
+                    );
+                }
             }
+            return username;
         };
 
         // onMount audioContext
@@ -318,9 +351,23 @@
                 simonService.send(Events.Start);
             });
         } else if ($simonState.context.mode === SimonModes.Duel) {
-            setPusherConnection();
-            forceHideStartButton = true;
+            if (!is_connected) {
+                connect();
+            }
+
+            if (is_connected) {
+                await fetchOpponents(input_username);
+                forceHideStartButton = true;
+            } else {
+                console.warn("not connected");
+            }
         }
+    }
+
+    let is_connected = false;
+    function connect() {
+        input_username = setPusherConnection()!;
+        is_connected = true;
     }
 
     async function repeat() {
@@ -376,16 +423,6 @@
     };
     // src="https://www.myinstants.com/media/sounds/m4a1_single-kibblesbob-8540445.mp3"
 
-    // function handleGameModeClick() {
-    //     if ($simonState.context.mode === SimonModes.Solo) {
-    //         simonSend({ type: Events.SetMode, mode: SimonModes.Duel });
-    //     } else if ($simonState.context.mode === SimonModes.Duel) {
-    //         forceHideStartButton = false;
-    //         closeConnection();
-    //         simonSend({ type: Events.SetMode, mode: SimonModes.Solo });
-    //     }
-    // }
-
     let isDaily = false;
     async function setGameMode(mode: SimonModes | "daily") {
         isDaily = false;
@@ -428,12 +465,53 @@
             })
             .then((data) => {
                 if (data.warnings && data.warnings.length > 0) {
-                    console.warn({ fetch: { sent: body, warn: data.warnings } });
+                    console.warn({
+                        fetch: { sent: body, warn: data.warnings },
+                    });
                 }
                 console.log({ fetch: { sent: body, got: data } });
                 return data.sequence;
             });
         return sequence;
+    }
+
+    async function fetchChannels() {
+        let channels: string[] = await fetch("/api/pusher/channels", {
+            method: "GET",
+        })
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error("Network response was not OK");
+                }
+                return response.json();
+            })
+            .then((data) => {
+                console.log({ fetch: { sent: {}, got: data } });
+                return data.channels;
+            });
+        return channels;
+    }
+
+    async function fetchOpponents(username: string, wanted: string[] = []) {
+        let available = await fetchChannels();
+        available = available.map((x) =>
+            x.startsWith("private-user-")
+                ? x.substring("private-user-".length)
+                : x
+        );
+        available = available.filter((name) => name !== username);
+        if (available.length === 0) {
+            console.warn("No available opponents");
+        } else {
+            let opponents: string[];
+            if (wanted.length === 0) {
+                opponents = [available[0]];
+            } else {
+                opponents = wanted.filter((name) => available.includes(name));
+            }
+            const players = [username, ...opponents];
+            maybePair(username, "fetchOpponents", { players: players });
+        }
     }
 
     import ArcButton from "../lib/ArcButton.svelte";
@@ -479,7 +557,11 @@
         $simonState.context.currentSequence.length /
         ($simonState.context.sequence.length +
             ($simonState.context.mode === SimonModes.Duel ? 1 : 0));
-    $: progress_ring_color = $simonState.context.sequence.length === $simonState.context.currentSequence.length ? "black" : "gainsboro";
+    $: progress_ring_color =
+        $simonState.context.sequence.length ===
+        $simonState.context.currentSequence.length
+            ? "black"
+            : "gainsboro";
 </script>
 
 <!-- https://codesandbox.io/s/nmdi4 -->
@@ -574,14 +656,26 @@
         </SettingsButton>
         {#if $simonState.context.mode === SimonModes.Duel}
             <br />
-            <input
-                type="text"
-                bind:value={input_username}
-                placeholder="username:"
-            />
+            <div>
+                <input
+                    type="text"
+                    bind:value={input_username}
+                    placeholder="username:"
+                    disabled={!is_game_off || is_connected}
+                />
+                <SettingsButton
+                    on:click={() => {
+                        connect();
+                    }}
+                    disabled={!is_game_off || is_connected}
+                >
+                    {is_connected
+                        ? `Connected as ${input_username}`
+                        : "Connect"}
+                </SettingsButton>
+            </div>
             <br />
             <pre>
-    duel_status: {duel_status}
     input_username: {input_username}
     players: {paired_players}
 
@@ -648,7 +742,7 @@ current: {$simonState.context.currentSequence}</pre>
 
         <div class="center">
             <div class="transition-container">
-                {#if !forceHideStartButton && ($simonState.value === States.Off || $simonState.value === States.Fail || $simonState.value === States.Win)}
+                {#if !forceHideStartButton && is_game_off}
                     <button
                         class="start text-base"
                         on:click={startGame}

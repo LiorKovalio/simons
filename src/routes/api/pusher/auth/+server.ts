@@ -1,27 +1,17 @@
 import { json } from '@sveltejs/kit';
 
-import Pusher from "pusher";
-import { APP_CLUSTER, APP_ID, APP_KEY, APP_SECRET } from '$env/static/private';
-
-let waitingList: string[] = [];
-
-const pusher = new Pusher({
-  // connect to pusher
-  appId: APP_ID,
-  key: APP_KEY,
-  secret: APP_SECRET,
-  cluster: APP_CLUSTER
-});
+import { pusher, channels } from '../pusher';
 
 /** @type {import('./$types').RequestHandler} */
 export async function POST({ request }) {
     const astext = await request.text();
-    console.log(astext);
+    console.debug(astext);
     const asquery = new URLSearchParams(astext);
     const username = asquery.get("username")!;
 
-    if (waitingList.indexOf(username) === -1) {
-      waitingList.push(username);
+    const channels_res = await channels();
+
+    if (!(`private-user-${username}` in Object.keys(channels_res))) {
       console.log("connecting", username);
 
       const socketId = asquery.get("socket_id")!;
@@ -29,27 +19,6 @@ export async function POST({ request }) {
       console.log(username, socketId, channel);
       const auth = pusher.authorizeChannel(socketId, channel);
       console.log("auth", auth);
-
-      await pusher.trigger(
-        ["private-user-" + username],
-        "waiting_for_opponent",
-        {}
-      );
-
-      if (waitingList.length >= 2) {
-        let p1, p2;
-        [p1, p2, ...waitingList] = waitingList;
-        console.log(`pairing up {${p1} , ${p2}}`);
-
-        // trigger a message to player one and player two on their own channels
-        await pusher.trigger(
-          ["private-user-" + p1, "private-user-" + p2],
-          "paired",
-          {
-            players: [p1, p2],
-          }
-        );
-      }
 
       return json(auth, { status: 200 });
     } else {

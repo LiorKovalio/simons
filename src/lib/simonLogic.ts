@@ -155,10 +155,18 @@ export const simonMachine = createMachine({
                 [Events.SetSequence]: {
                     actions: assign(setSequence),
                 },
-                [Events.Start]: {
-                    target: States.Working,
-                    actions: assign({ currentSequence: [], sequence: [] }),
-                },
+                [Events.Start]: [
+                    {
+                        target: States.Working,
+                        actions: assign({ currentSequence: [], sequence: [] }),
+                        cond: (context, event) => event.myTurn === undefined || event.myTurn === true
+                    },
+                    {
+                        target: States.WaitingForOpponent,
+                        actions: assign({ currentSequence: [], sequence: [] }),
+                        cond: (context, event) => !event.myTurn
+                    },
+                ],
                 [Events.Click]: undefined,
             },
         },
@@ -205,10 +213,18 @@ export const simonMachine = createMachine({
                 [Events.SetSequence]: {
                     actions: assign(setSequence),
                 },
-                [Events.Start]: {
-                    target: States.Working,
-                    actions: assign({ currentSequence: [], sequence: [] }),
-                },
+                [Events.Start]: [
+                    {
+                        target: States.Working,
+                        actions: assign({ currentSequence: [], sequence: [] }),
+                        cond: (context, event) => event.myTurn === undefined || event.myTurn === true
+                    },
+                    {
+                        target: States.WaitingForOpponent,
+                        actions: assign({ currentSequence: [], sequence: [] }),
+                        cond: (context, event) => !event.myTurn
+                    },
+                ],
                 [Events.Click]: undefined,
             },
         },
