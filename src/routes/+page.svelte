@@ -16,7 +16,7 @@
     import { sleep } from "../lib/sleep";
 
     /** @type {import('./$types').LayoutData} */
-    export let data = {} as { APP_CLUSTER: string, APP_KEY: string, };
+    export let data = {} as { APP_CLUSTER: string; APP_KEY: string };
 
     const {
         state: simonState,
@@ -49,6 +49,11 @@
                     break;
                 case States.Win:
                 case States.Fail:
+                    if (state.value === States.Win) {
+                        onWin();
+                    } else {
+                        onFail();
+                    }
                     disabled = true;
                     if (pusher_private_user_channel != null) {
                         console.log("trigger", "client-ioendgame", {
@@ -120,7 +125,7 @@
         $simonState.value === States.Win;
 
     let notes = [440, 261, 329, 392];
-    let show_press_duraion = 500;
+    let show_press_duration = 500;
     let show_press_gap = 500;
 
     let disabled = true;
@@ -451,10 +456,34 @@
     async function lightPad(color: string) {
         playNote(notes[$simonState.context.opts.indexOf(color)], 0.4);
         colorActive = color;
-        await sleep(show_press_duraion);
+        await sleep(show_press_duration);
         colorActive = "";
         stopNote();
         await sleep(show_press_gap);
+    }
+
+    async function waitNote(note: number | null) {
+        if (note != null) {
+            playNote(note, 0.4);
+        }
+        await sleep(200);
+        stopNote();
+    }
+
+    async function onWin() {
+        let tune = [0, 1, 2, 3, 1, 3, 0, 0].map((i) => notes[i]);
+        for (const note of tune) {
+            await waitNote(note);
+        }
+    }
+
+    async function onFail() {
+        let tune = [3, 3, 2, 1, 1, null, 3, 3, 2, 1, 1, 1, 1].map((i) =>
+            i === null ? null : notes[i]
+        );
+        for (const note of tune) {
+            await waitNote(note);
+        }
     }
 
     type Daily = "daily5" | "daily10";
