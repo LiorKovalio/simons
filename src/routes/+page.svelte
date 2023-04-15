@@ -16,7 +16,7 @@
     import { sleep } from "../lib/sleep";
 
     /** @type {import('./$types').LayoutData} */
-    export let data;
+    export let data = {} as { APP_CLUSTER: string, APP_KEY: string, };
 
     const {
         state: simonState,
