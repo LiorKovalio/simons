@@ -119,7 +119,6 @@
         $simonState.value === States.Fail ||
         $simonState.value === States.Win;
 
-    let sfxs = ["a4", "c4", "e4", "g4"];
     let notes = [440, 261, 329, 392];
     let show_press_duraion = 500;
     let show_press_gap = 500;
@@ -450,7 +449,6 @@
     }
 
     async function lightPad(color: string) {
-        // activateSfx(opts.indexOf(color));
         playNote(notes[$simonState.context.opts.indexOf(color)], 0.4);
         colorActive = color;
         await sleep(show_press_duraion);
@@ -458,22 +456,6 @@
         stopNote();
         await sleep(show_press_gap);
     }
-
-    let is_sfx_active = false;
-    let sfxsBinds: Array<HTMLAudioElement | null> = sfxs.map((_) => null);
-    const activateSfx = (i: number) => {
-        if (i < sfxsBinds.length && sfxsBinds[i]) {
-            is_sfx_active = !is_sfx_active;
-            sfxsBinds[i]!.play();
-
-            setTimeout(() => {
-                is_sfx_active = false;
-                sfxsBinds[i]!.pause();
-                sfxsBinds[i]!.currentTime = 0;
-            }, show_press_duraion);
-        }
-    };
-    // src="https://www.myinstants.com/media/sounds/m4a1_single-kibblesbob-8540445.mp3"
 
     type Daily = "daily5" | "daily10";
     let isDaily: Daily | null = null;
@@ -648,12 +630,6 @@
 </script>
 
 <!-- https://codesandbox.io/s/nmdi4 -->
-
-{#each sfxs as s, i}
-    <audio src="audio/{s}.mp3" preload="auto" bind:this={sfxsBinds[i]}>
-        <track kind="captions" />
-    </audio>
-{/each}
 
 <Drawer
     transitionType="fly"
