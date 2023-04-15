@@ -148,6 +148,7 @@ export const simonMachine = createMachine({
         [States.Fail]: {
             on: {
                 [Events.SetMode]: {
+                    target: States.Off,
                     actions: assign({
                         mode: (context, event) => event.mode,
                     }),
@@ -206,6 +207,7 @@ export const simonMachine = createMachine({
         [States.Win]: {
             on: {
                 [Events.SetMode]: {
+                    target: States.Off,
                     actions: assign({
                         mode: (context, event) => event.mode,
                     }),
@@ -241,20 +243,3 @@ export const simonMachine = createMachine({
         },
     },
 });
-
-// Machine instance with internal state
-// export const simonService = interpret(simonMachine)
-//   .onTransition((state) => console.log(state.value, state.context))
-//   .onEvent((event)=> console.log(event))
-//   .start();
-
-// let innerState;
-// innerState = simonService.send(Events.Start);
-// for (let index = 0; index < 3; index++) {
-//     console.log(index);
-//     const curlen = innerState.context.sequence.length;
-//     for (let j = 0; j < curlen; j++) {
-//         const oracle = innerState.context.sequence[innerState.context.currentSequence.length];
-//         innerState = simonService.send({ type: Events.Click, opt: oracle });
-//     }
-// }

@@ -64,6 +64,11 @@
                             }
                         );
                     }
+                    alert_data = {
+                        title: state.value,
+                        msg: null,
+                        type: "info",
+                    };
                     unsubscribe();
                     unsubscribe_me();
                     forceHideStartButton = false;
@@ -140,6 +145,11 @@
             "Error",
             "Subscription error occurred. Please restart the app"
         );
+        alert_data = {
+            title: "Error",
+            msg: "Subscription error occurred. Please reload the page",
+            type: "error",
+        };
     }
 
     function maybePair(
@@ -159,6 +169,11 @@
                 data.players.forEach((p: string) => {
                     if (p !== username) {
                         console.log(username, "working with", p);
+                        alert_data = {
+                            title: "Pairing",
+                            msg: p,
+                            type: "info",
+                        };
                         setTransportToOther(p, data.players);
                     }
                 });
@@ -185,6 +200,11 @@
 
         pc.bind("pusher:subscription_succeeded", (data) => {
             console.log("opponent subscription ok: ", data);
+            alert_data = {
+                title: "Paired",
+                msg: pc.name,
+                type: "info",
+            };
 
             pc.trigger("client-paired", { players: players });
 
@@ -245,6 +265,11 @@
 
             if (username) {
                 console.log("connecting");
+                alert_data = {
+                    title: "Connecting",
+                    msg: null,
+                    type: "info",
+                };
                 // connect to Pusher:
                 if (pusher === null) {
                     pusher = new Pusher(data.APP_KEY, {
@@ -256,6 +281,11 @@
                         },
                     });
                     console.log("pusher created");
+                    alert_data = {
+                        title: "Connecting",
+                        msg: "Found server",
+                        type: "info",
+                    };
                 }
 
                 const pusher_private_user_channel_name = `private-user-${username}`;
@@ -267,6 +297,11 @@
                     console.log(
                         `subscribing to ${pusher_private_user_channel_name}`
                     );
+                    alert_data = {
+                        title: "Connecting",
+                        msg: "Subscribing",
+                        type: "info",
+                    };
 
                     pusher_private_user_channel = pusher.subscribe(
                         `private-user-${username}`
@@ -283,6 +318,13 @@
                         "pusher:subscription_succeeded",
                         async (data) => {
                             console.log("subscription ok: ", data);
+                            alert_data = {
+                                title: "Connecting",
+                                msg: `Subscribed to ${
+                                    pusher_private_user_channel!.name
+                                }`,
+                                type: "info",
+                            };
 
                             pusher_private_user_channel!.bind(
                                 "client-paired",
@@ -342,6 +384,11 @@
 
     let forceHideStartButton = false;
     async function startGame() {
+        alert_data = {
+            title: null,
+            msg: null,
+            type: "info",
+        };
         if (!audioContextInited) {
             initAudioContext();
         }
@@ -423,9 +470,10 @@
     };
     // src="https://www.myinstants.com/media/sounds/m4a1_single-kibblesbob-8540445.mp3"
 
-    let isDaily = false;
-    async function setGameMode(mode: SimonModes | "daily") {
-        isDaily = false;
+    type Daily = "daily5" | "daily10";
+    let isDaily: Daily | null = null;
+    async function setGameMode(mode: SimonModes | Daily) {
+        isDaily = null;
         switch (mode) {
             case SimonModes.Solo:
                 forceHideStartButton = false;
@@ -439,20 +487,22 @@
                 step = 1;
                 simonSend({ type: Events.SetStep, step: step });
                 break;
-            case "daily":
+            case "daily5":
+            case "daily10":
                 console.debug("daily");
                 await setGameMode(SimonModes.Solo);
-                isDaily = true;
+                isDaily = mode;
+                const size = parseInt(mode.substring("daily".length));
                 simonSend({
                     type: Events.SetSequence,
-                    sequence: await fetchDailySequence(),
+                    sequence: await fetchDailySequence(size),
                 });
                 break;
         }
     }
 
-    async function fetchDailySequence() {
-        let body = { opts: $simonState.context.opts, size: 10 };
+    async function fetchDailySequence(size: number) {
+        let body = { opts: $simonState.context.opts, size: size };
         let sequence: string[] = await fetch("/api/daily", {
             method: "POST",
             body: JSON.stringify(body),
@@ -502,6 +552,11 @@
         available = available.filter((name) => name !== username);
         if (available.length === 0) {
             console.warn("No available opponents");
+            alert_data = {
+                title: "Warning",
+                msg: "No available opponents",
+                type: "warning",
+            };
         } else {
             let opponents: string[];
             if (wanted.length === 0) {
@@ -546,6 +601,7 @@
     import { sineIn } from "svelte/easing";
     import CircleProgressBar from "$lib/CircleProgressBar.svelte";
     import { scale } from "svelte/transition";
+    import Alert from "$lib/Alert.svelte";
 
     let hidden1 = true;
     let transitionParamsTop = {
@@ -562,6 +618,28 @@
         $simonState.context.currentSequence.length
             ? "black"
             : "gainsboro";
+
+    let alert_data = {
+        title: null,
+        msg: null,
+        type: "info",
+    } as {
+        title: string | null;
+        msg: string | null;
+        type: "info" | "warning" | "error";
+    };
+    function nullOrEmpty(x: string | null): boolean {
+        return x === null || x.length === 0;
+    }
+    $: alert_hidden =
+        nullOrEmpty(alert_data.title) && nullOrEmpty(alert_data.msg);
+    function resetAlert() {
+        alert_data = {
+            title: null,
+            msg: null,
+            type: "info",
+        };
+    }
 </script>
 
 <!-- https://codesandbox.io/s/nmdi4 -->
@@ -589,7 +667,7 @@
     <div class="flex flex-col items-center space-y-1">
         <div class="flex flex-row space-x-1" id="gameModeSelector">
             <SettingsButton
-                btnClass={!isDaily &&
+                btnClass={isDaily === null &&
                 $simonState.context.mode === SimonModes.Solo
                     ? "selectedGameMode"
                     : "baseGameMode"}
@@ -602,8 +680,22 @@
                 Regular
             </SettingsButton>
             <SettingsButton
-                btnClass={isDaily ? "selectedGameMode" : "baseGameMode"}
-                on:click={() => setGameMode("daily")}
+                btnClass={isDaily === "daily5"
+                    ? "selectedGameMode"
+                    : "baseGameMode"}
+                on:click={() => setGameMode("daily5")}
+                disabled={!$simonState.can({
+                    type: Events.SetMode,
+                    mode: SimonModes.Solo,
+                })}
+            >
+                Daily 5
+            </SettingsButton>
+            <SettingsButton
+                btnClass={isDaily === "daily10"
+                    ? "selectedGameMode"
+                    : "baseGameMode"}
+                on:click={() => setGameMode("daily10")}
                 disabled={!$simonState.can({
                     type: Events.SetMode,
                     mode: SimonModes.Solo,
@@ -612,7 +704,7 @@
                 Daily 10
             </SettingsButton>
             <SettingsButton
-                btnClass={!isDaily &&
+                btnClass={isDaily === null &&
                 $simonState.context.mode === SimonModes.Duel
                     ? "selectedGameMode"
                     : "baseGameMode"}
@@ -762,6 +854,14 @@ current: {$simonState.context.currentSequence}</pre>
         </div>
     </div>
 </section>
+<Alert
+    title={alert_data.title}
+    msg={alert_data.msg}
+    type={alert_data.type}
+    bind:hidden={alert_hidden}
+    on:click={resetAlert}
+    on:hide={resetAlert}
+/>
 
 <style>
     :global(:root) {

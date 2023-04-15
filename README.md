@@ -45,12 +45,9 @@ You can preview the production build with `npm run preview`.
 ### TODO
 * add sfx for correct pattern, and for failure
 * Network tasks
-    * seperate pairing logic from auth to new API route
-        * handle re-pairing on end of game
     * handle disconnect (midgame)
     * allow pairing to a name
 * sequence of the day - daily memory exercise
-    * maybe set multiple sizes (daily5, daily15 etc.)
     * should the user get all daily at once, or one-by-one?
 * fix iphone UI (circles are squares)
 
