@@ -49,6 +49,7 @@
                     break;
                 case States.Win:
                 case States.Fail:
+                    disabled = true;
                     if (pusher_private_user_channel != null) {
                         console.log("trigger", "client-ioendgame", {
                             state: state.value,
