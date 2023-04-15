@@ -71,6 +71,10 @@
                     };
                     unsubscribe();
                     unsubscribe_me();
+
+                    if (isDaily != null) {
+                        setGameMode(SimonModes.Solo);
+                    }
                     forceHideStartButton = false;
                     break;
                 default:
