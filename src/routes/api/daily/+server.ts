@@ -1,16 +1,17 @@
 import { json } from '@sveltejs/kit';
+import { APP_SIMON_SECRET } from '$env/static/private';
 
 import seedrandom from 'seedrandom';
 
 const SEQUENCE_MAX_SIZE = 20;
-const seed = "simonsecret" + new Date().toDateString();
+const seed = APP_SIMON_SECRET + new Date().toDateString();
 
 function getRandomOpt(random: any, range: number) {
     return Math.floor(random() * range);
 }
 
 function randomChoice(opts: any[], size: number) {
-    const random = seedrandom(seed);
+    const random = seedrandom(seed + size.toString());
     let out = [];
     for (let i = 0; i < size; i++) {
         out.push(opts[getRandomOpt(random, opts.length)]);
