@@ -454,7 +454,9 @@
     }
 
     async function lightPad(color: string) {
-        playNote(notes[$simonState.context.opts.indexOf(color)], 0.4);
+        if (is_sound_hints) {
+            playNote(notes[$simonState.context.opts.indexOf(color)], 0.4);
+        }
         colorActive = color;
         await sleep(show_press_duration);
         colorActive = "";
@@ -471,18 +473,22 @@
     }
 
     async function onWin() {
-        let tune = [0, 1, 2, 3, 1, 3, 0, 0].map((i) => notes[i]);
-        for (const note of tune) {
-            await waitNote(note);
+        if (is_SFX) {
+            let tune = [0, 1, 2, 3, 1, 3, 0, 0].map((i) => notes[i]);
+            for (const note of tune) {
+                await waitNote(note);
+            }
         }
     }
 
     async function onFail() {
-        let tune = [3, 3, 2, 1, 1, null, 3, 3, 2, 1, 1, 1, 1].map((i) =>
-            i === null ? null : notes[i]
-        );
-        for (const note of tune) {
-            await waitNote(note);
+        if (is_SFX) {
+            let tune = [3, 3, 2, 1, 1, null, 3, 3, 2, 1, 1, 1, 1].map((i) =>
+                i === null ? null : notes[i]
+            );
+            for (const note of tune) {
+                await waitNote(note);
+            }
         }
     }
 
@@ -619,8 +625,9 @@
     import { scale } from "svelte/transition";
     import Alert from "$lib/Alert.svelte";
     import LiorKBar from "$lib/LiorKBar.svelte";
+    import Toggle from "$lib/Toggle.svelte";
 
-    let hidden1 = true;
+    let hidden1 = false;
     let transitionParamsTop = {
         y: -320,
         duration: 200,
@@ -656,6 +663,14 @@
             msg: null,
             type: "info",
         };
+    }
+
+    let is_SFX = true;
+    let is_sound_hints = true;
+    let is_mute = false;
+    $: if (is_mute) {
+        is_SFX = false;
+        is_sound_hints = false;
     }
 </script>
 
@@ -741,6 +756,16 @@
                 />
             </p>
         {/if}
+
+        <div id="toggles_col" class="grid gap-y-1">
+            <Toggle text="SFX" bind:checked={is_SFX} disabled={is_mute} />
+            <Toggle
+                text="Sound Hint"
+                bind:checked={is_sound_hints}
+                disabled={is_mute}
+            />
+            <Toggle text="Mute" bind:checked={is_mute} disabled={false} />
+        </div>
 
         <SettingsButton
             on:click={() => {
