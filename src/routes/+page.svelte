@@ -134,7 +134,10 @@
     let input_username = "";
     let paired_players: string[] = [];
 
-    let step = 1;
+    const STEP_MIN = 1;
+    const STEP_MAX = 10;
+    let step = STEP_MIN;
+    $: step =  Math.min(Math.max(step, STEP_MIN), STEP_MAX);
     $: simonSend({ type: Events.SetStep, step: step });
 
     // audio vars, inited on onMount. see "onMount audioContext"
@@ -744,20 +747,22 @@
             </SettingsButton>
         </div>
 
-        {#if $simonState.context.mode === SimonModes.Solo}
-            <p>
-                <label for="settingsStepSize">Step:</label>
-                <input
-                    id="settingsStepSize"
-                    type="number"
-                    placeholder="step:"
-                    min="1"
-                    bind:value={step}
-                />
-            </p>
-        {/if}
-
-        <div id="toggles_col" class="grid gap-y-1">
+        <div id="settings_col" class="grid gap-y-1">
+            {#if $simonState.context.mode === SimonModes.Solo}
+                <p>
+                    <label for="settingsStepSize">Step</label>
+                    <input
+                        id="settingsStepSize"
+                        type="number"
+                        placeholder="step:"
+                        min={STEP_MIN}
+                        max={STEP_MAX}
+                        bind:value={step}
+                        style:width="5rem"
+                        class="text-sm rounded-lg focus:ring-device-color1 focus:border-device-color1"
+                    />
+                </p>
+            {/if}
             <Toggle text="SFX" bind:checked={is_SFX} disabled={is_mute} />
             <Toggle
                 text="Sound Hint"
