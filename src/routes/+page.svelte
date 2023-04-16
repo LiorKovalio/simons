@@ -630,7 +630,7 @@
     import LiorKBar from "$lib/LiorKBar.svelte";
     import Toggle from "$lib/Toggle.svelte";
 
-    let hidden1 = false;
+    let hidden1 = true;
     let transitionParamsTop = {
         y: -320,
         duration: 200,

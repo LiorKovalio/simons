@@ -12,7 +12,9 @@
     class="text-center font-medium inline-flex items-center justify-center px-5 py-2.5 text-sm text-white rounded-lg
         bg-device-color1
         focus:ring-4 focus:outline-none focus:ring-purple-300
-        hover:bg-device-color1/[.7] {btnClass}"
+        hover:bg-device-color1/[.7]
+        disabled:opacity-50
+        {btnClass}"
 >
     <slot />
 </button>

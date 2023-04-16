@@ -19,7 +19,9 @@
         after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:text-center after:leading-4
         after:text-device-color1
         after:transition-all dark:border-gray-600 peer-checked:bg-device-color1
-        peer-disabled:bg-gray-200 peer-disabled:after:text-gray-200"
+        peer-disabled:bg-gray-200 peer-disabled:after:text-gray-200
+        focus:ring-4 focus:ring-purple-300
+        peer-focus:ring-4 peer-focus:ring-purple-300"
     />
     <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300"
         >{text}</span
