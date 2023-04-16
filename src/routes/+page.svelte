@@ -618,6 +618,7 @@
     import CircleProgressBar from "$lib/CircleProgressBar.svelte";
     import { scale } from "svelte/transition";
     import Alert from "$lib/Alert.svelte";
+    import LiorKBar from "$lib/LiorKBar.svelte";
 
     let hidden1 = true;
     let transitionParamsTop = {
@@ -872,6 +873,9 @@ current: {$simonState.context.currentSequence}</pre>
     on:click={resetAlert}
     on:hide={resetAlert}
 />
+<footer>
+    <LiorKBar />
+</footer>
 
 <style>
     :global(:root) {
@@ -957,5 +961,13 @@ current: {$simonState.context.currentSequence}</pre>
     .transition-container > * {
         grid-row: 1;
         grid-column: 1;
+    }
+
+    footer {
+        display: flex;
+        justify-content: center;
+        position: absolute;
+        bottom: 0;
+        width: 100%;
     }
 </style>
