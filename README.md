@@ -43,12 +43,9 @@ You can preview the production build with `npm run preview`.
 * Duel play, where the added item is chosen by an opponent
 
 ### TODO
-* add sfx for correct pattern, and for failure
 * Network tasks
     * handle disconnect (midgame)
     * allow pairing to a name
-* sequence of the day - daily memory exercise
-    * should the user get all daily at once, or one-by-one?
 * fix iphone UI (circles are squares)
 
 ### Dreams
