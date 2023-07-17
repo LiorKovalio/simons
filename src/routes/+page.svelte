@@ -137,7 +137,7 @@
     const STEP_MIN = 1;
     const STEP_MAX = 10;
     let step = STEP_MIN;
-    $: step =  Math.min(Math.max(step, STEP_MIN), STEP_MAX);
+    $: step = Math.min(Math.max(step, STEP_MIN), STEP_MAX);
     $: simonSend({ type: Events.SetStep, step: step });
 
     // audio vars, inited on onMount. see "onMount audioContext"
@@ -267,6 +267,7 @@
         }
     }
 
+    let onMountDone = false;
     onMount(async () => {
         console.log("import meta env MODE", import.meta.env.MODE);
 
@@ -379,6 +380,7 @@
                 audioContextInited = true;
             }
         };
+        onMountDone = true;
     });
 
     async function playSequence(sequence: string[]) {
@@ -855,23 +857,26 @@ current: {$simonState.context.currentSequence}</pre>
         style:display="block"
         style:outline="50px solid var(--borders-color)"
     >
-        {#each $simonState.context.opts as color, i}
-            {@const { color: fgcolor, active: activecolor } = optProps[color]}
-            <ArcButton
-                {fgcolor}
-                bgcolor={border_color}
-                {activecolor}
-                size="var(--pad_size)"
-                radius="310px"
-                rotation="{degs[i]}deg"
-                active={colorActive === color || allActive}
-                bind:disabled
-                on:click={async () => {
-                    await lightPad(color);
-                    simonSend({ type: Events.Click, opt: color });
-                }}
-            />
-        {/each}
+        {#if onMountDone}
+            {#each $simonState.context.opts as color, i}
+                {@const { color: fgcolor, active: activecolor } =
+                    optProps[color]}
+                <ArcButton
+                    {fgcolor}
+                    bgcolor={border_color}
+                    {activecolor}
+                    size="var(--pad_size)"
+                    radius="310px"
+                    rotation="{degs[i]}deg"
+                    active={colorActive === color || allActive}
+                    bind:disabled
+                    on:click={async () => {
+                        await lightPad(color);
+                        simonSend({ type: Events.Click, opt: color });
+                    }}
+                />
+            {/each}
+        {/if}
 
         <div class="center">
             <div class="transition-container">
