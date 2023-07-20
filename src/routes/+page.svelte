@@ -690,6 +690,10 @@
     }
 </script>
 
+<svelte:head>
+    <title>Simons by Lior Kovalio</title>
+</svelte:head>
+
 <!-- https://codesandbox.io/s/nmdi4 -->
 
 <Drawer
