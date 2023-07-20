@@ -18,6 +18,13 @@
     /** @type {import('./$types').LayoutData} */
     export let data = {} as { APP_CLUSTER: string; APP_KEY: string };
 
+    function reductOnProd(stringable: any): string {
+        if (import.meta.env.PROD) {
+            return "REDUCTED";
+        }
+        return `${stringable}`;
+    }
+
     const {
         state: simonState,
         send: simonSend,
@@ -26,7 +33,9 @@
     simonService
         .onTransition(async (state) => {
             console.log(
-                `${state.value}\n\tsequence: ${state.context.sequence}\n\tcurrent: ${state.context.currentSequence}`
+                `${state.value}\n\tsequence: ${reductOnProd(
+                    state.context.sequence
+                )}\n\tcurrent: ${reductOnProd(state.context.currentSequence)}`
             );
             console.log(`\tmode: ${state.context.mode}`);
             switch (state.value) {
@@ -88,7 +97,9 @@
             }
         })
         .onEvent((event) => {
-            console.dir(event);
+            if (!import.meta.env.PROD) {
+                console.dir(event);
+            }
             switch (event.type) {
                 case Events.Click:
                     if (
