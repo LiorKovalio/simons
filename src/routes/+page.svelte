@@ -692,6 +692,10 @@
 
 <svelte:head>
     <title>Simons by Lior Kovalio</title>
+    <meta
+        name="description"
+        content="Simons is a twist on the classic Simon game, for 2 players, where each one sets the next step for the other"
+    />
 </svelte:head>
 
 <!-- https://codesandbox.io/s/nmdi4 -->
