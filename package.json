@@ -33,7 +33,6 @@
 		"pusher": "^5.1.2",
 		"pusher-js": "^8.0.1",
 		"seedrandom": "^3.0.5",
-		"simonsserver": "file:server",
 		"xstate": "^4.37.0"
 	}
 }
