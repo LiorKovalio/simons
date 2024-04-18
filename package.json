@@ -26,6 +26,7 @@
 	"dependencies": {
 		"@popperjs/core": "^2.11.6",
 		"@sveltejs/adapter-vercel": "^2.3.1",
+		"@vercel/analytics": "^1.2.2",
 		"@xstate/svelte": "^2.0.1",
 		"classnames": "^2.3.2",
 		"flowbite": "^1.6.4",
