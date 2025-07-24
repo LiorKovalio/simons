@@ -12,6 +12,7 @@
 
 <button
     type="button"
+    aria-label="Arc Button {fgcolor}"
     style:--size={size}
     style:--radius={radius}
     style:--color={fgcolor}
@@ -25,7 +26,7 @@
     on:click
     on:mouseover
     on:focus
-/>
+></button>
 
 <style>
     button {
