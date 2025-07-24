@@ -6,6 +6,7 @@
     <a
         href="https://www.linkedin.com/in/lior-kovalio-24a275145/"
         target="_blank"
+        aria-label="LinkedIn profile"
         style:grid-area="link1"
     >
         <svg
@@ -24,6 +25,7 @@
     <a
         href="https://twitter.com/LiorKovalio"
         target="_blank"
+        aria-label="Twitter profile"
         style:grid-area="link2"
     >
         <svg
@@ -42,6 +44,7 @@
     <a
         href="https://github.com/LiorKovalio/simons"
         target="_blank"
+        aria-label="GitHub repository"
         style:grid-area="link3"
     >
         <svg

@@ -22,7 +22,7 @@
         peer-disabled:bg-gray-200 peer-disabled:after:text-gray-200
         focus:ring-4 focus:ring-purple-300
         peer-focus:ring-4 peer-focus:ring-purple-300"
-    />
+    ></div>
     <span class="ml-3 text-sm font-medium text-gray-900 dark:text-gray-300"
         >{text}</span
     >
