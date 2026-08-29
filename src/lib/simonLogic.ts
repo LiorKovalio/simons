@@ -1,4 +1,4 @@
-import { createMachine, assign } from 'xstate';
+import { createMachine, assign, setup } from 'xstate';
 
 function getRandomOpt(range: number) {
     return Math.floor(Math.random() * range);
@@ -14,12 +14,9 @@ export const enum States {
     WaitingForUser = "WaitingForUser",
     Working = "Working",
     Fail = "Fail",
-    // duel states
     WaitingForExtension = "WaitingForExtension",
     WaitingForOpponent = "WaitingForOpponent",
     Win = "Win",
-    // WaitingForUserMove = "WaitingForUserMove",
-    // WaitingForOpponentMove = "WaitingForOpponentMove",
 }
 
 export const enum Events {
@@ -51,29 +48,75 @@ function predefinedSequence(seq: string[]): (p: string[], opts: string[], step: 
             }
         }
         return [...p, ...extension];
-    }
+    };
 }
 
-function setSequence(context, event) {
-    if (event.sequence.length === 0) {
-        return {
-            extendFunc: extendPattern,
-            maxSequenceLength: -1,
-        }
-    } else {
-        return {
-            extendFunc: predefinedSequence(event.sequence),
-            maxSequenceLength: event.sequence.length,
-        }
-    }
-}
-
-export const simonMachine = createMachine({
-    predictableActionArguments: true,
-    schema: {
-        context: {} as { opts: string[], mode: SimonModes, sequence: string[], currentSequence: string[], extendFunc: (sequence: string[], opts: string[], step: number) => string[], maxSequenceLength: number, step: number },
-        events: {} as { type: Events.Start, myTurn?: boolean } | { type: Events.Click, opt: string } | { type: Events.SetMode, mode: SimonModes } | { type: Events.SetSequence, sequence: string[] } | { type: Events.SetStep, step: number }
+const simonMachine = setup({
+    types: {
+        context: {} as {
+            opts: string[];
+            mode: SimonModes;
+            sequence: string[];
+            currentSequence: string[];
+            extendFunc: (sequence: string[], opts: string[], step: number) => string[];
+            maxSequenceLength: number;
+            step: number;
+        },
+        events: {} as
+            | { type: Events.Start; myTurn?: boolean }
+            | { type: Events.Click; opt: string }
+            | { type: Events.SetMode; mode: SimonModes }
+            | { type: Events.SetSequence; sequence: string[] }
+            | { type: Events.SetStep; step: number },
     },
+    guards: {
+        isMyTurn: ({ event }) => event.type === Events.Start && (event.myTurn === undefined || event.myTurn === true),
+        notMyTurn: ({ event }) => event.type === Events.Start && !event.myTurn,
+        isSoloMode: ({ context }) => context.mode === SimonModes.Solo,
+        isDuelMode: ({ context }) => context.mode === SimonModes.Duel,
+        sequenceComplete: ({ context }) =>
+            context.maxSequenceLength > 0 && context.maxSequenceLength === context.sequence.length,
+        lastClickCorrect: ({ context, event }) =>
+            event.type === Events.Click &&
+            context.sequence.length === context.currentSequence.length + 1 &&
+            isClickCorrect(context.sequence, context.currentSequence, event.opt),
+        clickCorrect: ({ context, event }) =>
+            event.type === Events.Click && isClickCorrect(context.sequence, context.currentSequence, event.opt),
+        waitingForUserDone: ({ context }) =>
+            context.sequence.length === context.currentSequence.length,
+    },
+    actions: {
+        setMode: assign(({ event }) => (event.type === Events.SetMode ? { mode: event.mode } : {})),
+        setSequence: assign(({ event }) => {
+            if (event.type === Events.SetSequence) {
+                if (event.sequence.length === 0) {
+                    return { extendFunc: extendPattern, maxSequenceLength: -1 };
+                } else {
+                    return {
+                        extendFunc: predefinedSequence(event.sequence),
+                        maxSequenceLength: event.sequence.length,
+                    };
+                }
+            }
+            return {};
+        }),
+        resetSequences: assign({ currentSequence: [], sequence: [] }),
+        addClickToCurrent: assign(({ context, event }) =>
+            event.type === Events.Click ? { currentSequence: [...context.currentSequence, event.opt] } : {}
+        ),
+        extendSequence: assign(({ context }) => ({
+            sequence: context.extendFunc(context.sequence, context.opts, context.step),
+            currentSequence: [],
+        })),
+        addExtensionAndSwitch: assign(({ context, event }) =>
+            event.type === Events.Click ? { sequence: [...context.sequence, event.opt], currentSequence: [] } : {}
+        ),
+        addOpponentClickAndSwitch: assign(({ context, event }) =>
+            event.type === Events.Click ? { sequence: [...context.sequence, event.opt], currentSequence: [] } : {}
+        ),
+        setStep: assign(({ event }) => (event.type === Events.SetStep ? { step: event.step } : {})),
+    },
+}).createMachine({
     initial: States.Off,
     context: {
         opts: ["red", "green", "yellow", "blue"],
@@ -87,159 +130,72 @@ export const simonMachine = createMachine({
     states: {
         [States.Off]: {
             on: {
-                [Events.SetMode]: {
-                    actions: assign({
-                        mode: (context, event) => event.mode,
-                    }),
-                },
-                [Events.SetSequence]: {
-                    actions: assign(setSequence),
-                },
+                [Events.SetMode]: { actions: 'setMode' },
+                [Events.SetSequence]: { actions: 'setSequence' },
                 [Events.Start]: [
-                    {
-                        target: States.Working,
-                        actions: assign({ currentSequence: [], sequence: [] }),
-                        cond: (context, event) => event.myTurn === undefined || event.myTurn === true
-                    },
-                    {
-                        target: States.WaitingForOpponent,
-                        actions: assign({ currentSequence: [], sequence: [] }),
-                        cond: (context, event) => !event.myTurn
-                    },
+                    { target: States.Working, actions: 'resetSequences', guard: 'isMyTurn' },
+                    { target: States.WaitingForOpponent, actions: 'resetSequences', guard: 'notMyTurn' },
                 ],
-            }
+            },
         },
         [States.WaitingForUser]: {
             on: {
                 [Events.Click]: [
-                    {
-                        target: States.Working,
-                        actions: assign({ currentSequence: (context, event) => [...context.currentSequence, event.opt] }),
-                        cond: (context, event) => context.sequence.length === context.currentSequence.length + 1 && isClickCorrect(context.sequence, context.currentSequence, event.opt),
-                    },
-                    {
-                        actions: assign({ currentSequence: (context, event) => [...context.currentSequence, event.opt] }),
-                        cond: (context, event) => isClickCorrect(context.sequence, context.currentSequence, event.opt),
-                    },
+                    { target: States.Working, actions: 'addClickToCurrent', guard: 'lastClickCorrect' },
+                    { actions: 'addClickToCurrent', guard: 'clickCorrect' },
                     { target: States.Fail },
                 ],
             },
         },
         [States.Working]: {
             always: [
-                {
-                    target: States.Win,
-                    cond: (context, event) => context.mode === SimonModes.Solo && context.maxSequenceLength > 0 && context.maxSequenceLength === context.sequence.length
-                },
-                {
-                    target: States.WaitingForUser,
-                    actions: assign({
-                        sequence: (context, event) => context.extendFunc(context.sequence, context.opts, context.step),
-                        currentSequence: [],
-                    }),
-                    cond: (context, event) => context.mode === SimonModes.Solo
-                },
-                {
-                    target: States.WaitingForExtension,
-                    cond: (context, event) => context.mode === SimonModes.Duel
-                },
-            ]
+                { target: States.Win, guard: ({ context }) => context.mode === SimonModes.Solo && context.maxSequenceLength > 0 && context.maxSequenceLength === context.sequence.length },
+                { target: States.WaitingForUser, actions: 'extendSequence', guard: 'isSoloMode' },
+                { target: States.WaitingForExtension, guard: 'isDuelMode' },
+            ],
         },
         [States.Fail]: {
             on: {
-                [Events.SetMode]: {
-                    target: States.Off,
-                    actions: assign({
-                        mode: (context, event) => event.mode,
-                    }),
-                },
-                [Events.SetSequence]: {
-                    actions: assign(setSequence),
-                },
+                [Events.SetMode]: { target: States.Off, actions: 'setMode' },
+                [Events.SetSequence]: { actions: 'setSequence' },
                 [Events.Start]: [
-                    {
-                        target: States.Working,
-                        actions: assign({ currentSequence: [], sequence: [] }),
-                        cond: (context, event) => event.myTurn === undefined || event.myTurn === true
-                    },
-                    {
-                        target: States.WaitingForOpponent,
-                        actions: assign({ currentSequence: [], sequence: [] }),
-                        cond: (context, event) => !event.myTurn
-                    },
+                    { target: States.Working, actions: 'resetSequences', guard: 'isMyTurn' },
+                    { target: States.WaitingForOpponent, actions: 'resetSequences', guard: 'notMyTurn' },
                 ],
-                [Events.Click]: undefined,
+                [Events.Click]: { actions: [] },
             },
         },
-        // duel states
         [States.WaitingForExtension]: {
             on: {
                 [Events.Click]: [
-                    {
-                        target: States.WaitingForOpponent,
-                        actions: assign({
-                            sequence: (context, event) => [...context.sequence, event.opt],
-                            currentSequence: [],
-                        }),
-                    },
+                    { target: States.WaitingForOpponent, actions: 'addExtensionAndSwitch' },
                 ],
             },
         },
         [States.WaitingForOpponent]: {
             on: {
                 [Events.Click]: [
-                    {
-                        target: States.WaitingForUser,
-                        actions: assign({
-                            sequence: (context, event) => [...context.sequence, event.opt],
-                            currentSequence: [],
-                        }),
-                        cond: (context, event) => context.sequence.length === context.currentSequence.length,
-                    },
-                    {
-                        actions: assign({ currentSequence: (context, event) => [...context.currentSequence, event.opt] }),
-                        cond: (context, event) => isClickCorrect(context.sequence, context.currentSequence, event.opt),
-                    },
+                    { target: States.WaitingForUser, actions: 'addOpponentClickAndSwitch', guard: 'waitingForUserDone' },
+                    { actions: 'addClickToCurrent', guard: 'clickCorrect' },
                     { target: States.Win },
                 ],
             },
         },
         [States.Win]: {
             on: {
-                [Events.SetMode]: {
-                    target: States.Off,
-                    actions: assign({
-                        mode: (context, event) => event.mode,
-                    }),
-                },
-                [Events.SetSequence]: {
-                    actions: assign(setSequence),
-                },
+                [Events.SetMode]: { target: States.Off, actions: 'setMode' },
+                [Events.SetSequence]: { actions: 'setSequence' },
                 [Events.Start]: [
-                    {
-                        target: States.Working,
-                        actions: assign({ currentSequence: [], sequence: [] }),
-                        cond: (context, event) => event.myTurn === undefined || event.myTurn === true
-                    },
-                    {
-                        target: States.WaitingForOpponent,
-                        actions: assign({ currentSequence: [], sequence: [] }),
-                        cond: (context, event) => !event.myTurn
-                    },
+                    { target: States.Working, actions: 'resetSequences', guard: 'isMyTurn' },
+                    { target: States.WaitingForOpponent, actions: 'resetSequences', guard: 'notMyTurn' },
                 ],
-                [Events.Click]: undefined,
+                [Events.Click]: { actions: [] },
             },
         },
-
     },
     on: {
-        [Events.SetStep]: {
-            actions: [
-                assign({
-                    step: (context, event) => event.step,
-                }),
-                (context, event) => console.log(context)
-            ],
-        },
+        [Events.SetStep]: { actions: 'setStep' },
     },
 });
+
+export { simonMachine };

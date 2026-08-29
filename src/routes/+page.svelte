@@ -16,7 +16,7 @@
     import { sleep } from "../lib/sleep";
 
     /** @type {import('./$types').LayoutData} */
-    export let data = {} as { APP_CLUSTER: string; APP_KEY: string };
+    let { data } = $props();
 
     function reductOnProd(stringable: any): string {
         if (import.meta.env.PROD) {
@@ -25,13 +25,12 @@
         return `${stringable}`;
     }
 
-    const {
-        state: simonState,
-        send: simonSend,
-        service: simonService,
-    } = useMachine(simonMachine);
-    simonService
-        .onTransition(async (state) => {
+    const { snapshot, send: simonSend, actorRef: simonService } = useMachine(simonMachine);
+    const simonState = $derived($snapshot.value);
+    const simonContext = $derived($snapshot.context);
+
+    $effect(() => {
+        const unsubTransition = simonService.subscribe(async (state: any) => {
             console.log(
                 `${state.value}\n\tsequence: ${reductOnProd(
                     state.context.sequence
@@ -95,21 +94,22 @@
                 default:
                     break;
             }
-        })
-        .onEvent((event) => {
+        });
+
+        const unsubEvent = simonService.on("*", (event: any) => {
             if (!import.meta.env.PROD) {
                 console.dir(event);
             }
             switch (event.type) {
                 case Events.Click:
                     if (
-                        $simonState.context.mode === SimonModes.Duel &&
+                        simonContext.mode === SimonModes.Duel &&
                         pusher_private_user_channel != null
                     ) {
                         const e = event as { type: Events.Click; opt: string };
                         if (
-                            $simonState.value === States.WaitingForUser ||
-                            $simonState.value === States.WaitingForExtension
+                            simonState === States.WaitingForUser ||
+                            simonState === States.WaitingForExtension
                         ) {
                             pusher_private_user_channel.trigger(
                                 "client-ioclicked",
@@ -120,50 +120,55 @@
                         }
                     }
                     break;
-                // case Events.SetMode:
-                //     const e = event as {
-                //         type: Events.SetMode;
-                //         mode: SimonModes;
-                //     };
-                //     toggleConnection(e.mode);
-                //     break;
             }
-        })
-        .start();
-    $: is_game_off =
-        $simonState.value === States.Off ||
-        $simonState.value === States.Fail ||
-        $simonState.value === States.Win;
+        });
+
+        simonService.start();
+
+        return () => {
+            unsubTransition.unsubscribe();
+            unsubEvent.unsubscribe();
+        };
+    });
+
+    let is_game_off = $derived(
+        simonState === States.Off ||
+        simonState === States.Fail ||
+        simonState === States.Win
+    );
 
     let notes = [440, 261, 329, 392];
     let show_press_duration = 500;
     let show_press_gap = 500;
 
-    let disabled = true;
-    let allActive = false;
-    let colorActive = "";
-    let input_username = "";
-    let paired_players: string[] = [];
+    let disabled = $state(true);
+    let allActive = $state(false);
+    let colorActive = $state("");
+    let input_username = $state("");
+    let paired_players = $state<string[]>([]);
 
     const STEP_MIN = 1;
     const STEP_MAX = 10;
-    let step = STEP_MIN;
-    $: step = Math.min(Math.max(step, STEP_MIN), STEP_MAX);
-    $: simonSend({ type: Events.SetStep, step: step });
+    let step = $state(STEP_MIN);
+    let stepClamped = $derived(Math.min(Math.max(step, STEP_MIN), STEP_MAX));
+    $effect(() => {
+        step = stepClamped;
+        simonSend({ type: Events.SetStep, step: step });
+    });
 
     // audio vars, inited on onMount. see "onMount audioContext"
-    let oscillator: OscillatorNode | null;
-    let gainNode: GainNode | null;
-    let audioContextInited = false;
+    let oscillator: OscillatorNode | null = $state(null);
+    let gainNode: GainNode | null = $state(null);
+    let audioContextInited = $state(false);
     let initAudioContext = () => {
         audioContextInited = true;
     };
 
     // pusher connection vars
-    let pusher: Pusher | null = null;
-    let pusher_private_user_channel: PusherTypes.Channel | null = null;
-    let other_subscriptions: string[] = [];
-    function onPusherSubscriptionError(status) {
+    let pusher: Pusher | null = $state(null);
+    let pusher_private_user_channel: PusherTypes.Channel | null = $state(null);
+    let other_subscriptions = $state<string[]>([]);
+    function onPusherSubscriptionError(status: any) {
         console.error(
             "Error",
             "Subscription error occurred. Please restart the app"
@@ -217,11 +222,11 @@
 
     function setTransportToOther(p: string, players: string[]) {
         const channel_name = `private-user-${p}`;
-        other_subscriptions.push(channel_name);
+        other_subscriptions = [...other_subscriptions, channel_name];
         const pc = pusher!.subscribe(channel_name);
         pc.bind("pusher:subscription_error", onPusherSubscriptionError);
 
-        pc.bind("pusher:subscription_succeeded", (data) => {
+        pc.bind("pusher:subscription_succeeded", (data: any) => {
             console.log("opponent subscription ok: ", data);
             alert_data = {
                 title: "Paired",
@@ -231,8 +236,8 @@
 
             pc.trigger("client-paired", { players: players });
 
-            pc.bind("client-ioclicked", (data) => {
-                if ($simonState.value === States.WaitingForOpponent) {
+            pc.bind("client-ioclicked", (data: any) => {
+                if (simonState === States.WaitingForOpponent) {
                     console.log(`opponent (${p}) clicked : "${data.opt}"`);
                     simonSend({
                         type: Events.Click,
@@ -243,7 +248,7 @@
                 }
             });
 
-            pc.bind("client-ioendgame", (data) => {
+            pc.bind("client-ioendgame", (data: any) => {
                 console.log(`opponent (${p}) endgame:`, data);
                 unsubscribe();
                 unsubscribe_me();
@@ -278,7 +283,7 @@
         }
     }
 
-    let onMountDone = false;
+    let onMountDone = $state(false);
     onMount(async () => {
         console.log("import meta env MODE", import.meta.env.MODE);
 
@@ -340,7 +345,7 @@
                     // subscription to their own channel succeeded
                     pusher_private_user_channel.bind(
                         "pusher:subscription_succeeded",
-                        async (data) => {
+                        async (data: any) => {
                             console.log("subscription ok: ", data);
                             alert_data = {
                                 title: "Connecting",
@@ -367,7 +372,7 @@
         initAudioContext = () => {
             if (!audioContextInited) {
                 const AudioContext =
-                    window.AudioContext || window.webkitAudioContext;
+                    window.AudioContext || (window as any).webkitAudioContext;
                 const audioCtx = new AudioContext();
                 console.log(audioCtx);
 
@@ -407,7 +412,7 @@
         return res;
     }
 
-    let forceHideStartButton = false;
+    let forceHideStartButton = $state(false);
     async function startGame() {
         alert_data = {
             title: null,
@@ -418,11 +423,11 @@
             initAudioContext();
         }
 
-        if ($simonState.context.mode === SimonModes.Solo) {
+        if (simonContext.mode === SimonModes.Solo) {
             withUserInputDisabled(async () => {
-                simonService.send(Events.Start);
+                simonSend({ type: Events.Start });
             });
-        } else if ($simonState.context.mode === SimonModes.Duel) {
+        } else if (simonContext.mode === SimonModes.Duel) {
             if (!is_connected) {
                 connect();
             }
@@ -436,7 +441,7 @@
         }
     }
 
-    let is_connected = false;
+    let is_connected = $state(false);
     function connect() {
         input_username = setPusherConnection()!;
         is_connected = true;
@@ -445,7 +450,7 @@
     async function repeat() {
         withUserInputDisabled(async () => {
             await sleep(show_press_gap);
-            await playSequence($simonState.context.sequence);
+            await playSequence(simonContext.sequence);
         });
     }
 
@@ -471,7 +476,7 @@
 
     async function lightPad(color: string) {
         if (is_sound_hints) {
-            playNote(notes[$simonState.context.opts.indexOf(color)], 0.4);
+            playNote(notes[simonContext.opts.indexOf(color)], 0.4);
         }
         colorActive = color;
         await sleep(show_press_duration);
@@ -509,7 +514,7 @@
     }
 
     type Daily = "daily5" | "daily10";
-    let isDaily: Daily | null = null;
+    let isDaily = $state<Daily | null>(null);
     async function setGameMode(mode: SimonModes | Daily) {
         isDaily = null;
         switch (mode) {
@@ -540,7 +545,7 @@
     }
 
     async function fetchDailySequence(size: number) {
-        let body = { opts: $simonState.context.opts, size: size };
+        let body = { opts: simonContext.opts, size: size };
         let sequence: string[] = await fetch("/api/daily", {
             method: "POST",
             body: JSON.stringify(body),
@@ -643,36 +648,34 @@
     import LiorKBar from "$lib/LiorKBar.svelte";
     import Toggle from "$lib/Toggle.svelte";
 
-    let hidden1 = true;
+    let hidden1 = $state(true);
     let transitionParamsTop = {
         y: -320,
         duration: 200,
         easing: sineIn,
     };
-    $: progress =
-        $simonState.context.currentSequence.length /
-        ($simonState.context.sequence.length +
-            ($simonState.context.mode === SimonModes.Duel ? 1 : 0));
-    $: progress_ring_color =
-        $simonState.context.sequence.length ===
-        $simonState.context.currentSequence.length
+    let progress = $derived(
+        simonContext.currentSequence.length /
+        (simonContext.sequence.length +
+            (simonContext.mode === SimonModes.Duel ? 1 : 0))
+    );
+    let progress_ring_color = $derived(
+        simonContext.sequence.length === simonContext.currentSequence.length
             ? "black"
-            : "gainsboro";
+            : "gainsboro"
+    );
 
-    let alert_data = {
-        title: null,
-        msg: null,
-        type: "info",
-    } as {
-        title: string | null;
-        msg: string | null;
-        type: "info" | "warning" | "error";
-    };
+    let alert_data = $state({
+        title: null as string | null,
+        msg: null as string | null,
+        type: "info" as "info" | "warning" | "error",
+    });
     function nullOrEmpty(x: string | null): boolean {
         return x === null || x.length === 0;
     }
-    $: alert_hidden =
-        nullOrEmpty(alert_data.title) && nullOrEmpty(alert_data.msg);
+    let alert_hidden = $derived(
+        nullOrEmpty(alert_data.title) && nullOrEmpty(alert_data.msg)
+    );
     function resetAlert() {
         alert_data = {
             title: null,
@@ -681,13 +684,15 @@
         };
     }
 
-    let is_SFX = true;
-    let is_sound_hints = true;
-    let is_mute = false;
-    $: if (is_mute) {
-        is_SFX = false;
-        is_sound_hints = false;
-    }
+    let is_SFX = $state(true);
+    let is_sound_hints = $state(true);
+    let is_mute = $state(false);
+    $effect(() => {
+        if (is_mute) {
+            is_SFX = false;
+            is_sound_hints = false;
+        }
+    });
 </script>
 
 <svelte:head>
@@ -718,14 +723,11 @@
         <div class="flex flex-row space-x-1" id="gameModeSelector">
             <SettingsButton
                 btnClass={isDaily === null &&
-                $simonState.context.mode === SimonModes.Solo
+                simonContext.mode === SimonModes.Solo
                     ? "selectedGameMode"
                     : "baseGameMode"}
                 on:click={() => setGameMode(SimonModes.Solo)}
-                disabled={!$simonState.can({
-                    type: Events.SetMode,
-                    mode: SimonModes.Solo,
-                })}
+                disabled={!(simonState === States.Off || simonState === States.Fail || simonState === States.Win)}
             >
                 Regular
             </SettingsButton>
@@ -734,10 +736,7 @@
                     ? "selectedGameMode"
                     : "baseGameMode"}
                 on:click={() => setGameMode("daily5")}
-                disabled={!$simonState.can({
-                    type: Events.SetMode,
-                    mode: SimonModes.Solo,
-                })}
+                disabled={!(simonState === States.Off || simonState === States.Fail || simonState === States.Win)}
             >
                 Daily 5
             </SettingsButton>
@@ -746,30 +745,24 @@
                     ? "selectedGameMode"
                     : "baseGameMode"}
                 on:click={() => setGameMode("daily10")}
-                disabled={!$simonState.can({
-                    type: Events.SetMode,
-                    mode: SimonModes.Solo,
-                })}
+                disabled={!(simonState === States.Off || simonState === States.Fail || simonState === States.Win)}
             >
                 Daily 10
             </SettingsButton>
             <SettingsButton
                 btnClass={isDaily === null &&
-                $simonState.context.mode === SimonModes.Duel
+                simonContext.mode === SimonModes.Duel
                     ? "selectedGameMode"
                     : "baseGameMode"}
                 on:click={() => setGameMode(SimonModes.Duel)}
-                disabled={!$simonState.can({
-                    type: Events.SetMode,
-                    mode: SimonModes.Duel,
-                })}
+                disabled={!(simonState === States.Off || simonState === States.Fail || simonState === States.Win)}
             >
                 Duel
             </SettingsButton>
         </div>
 
         <div id="settings_col" class="grid gap-y-1">
-            {#if $simonState.context.mode === SimonModes.Solo}
+            {#if simonContext.mode === SimonModes.Solo}
                 <p>
                     <label for="settingsStepSize">Step</label>
                     <input
@@ -800,15 +793,15 @@
             }}
             disabled={disabled ||
                 !(
-                    ($simonState.value === States.WaitingForUser &&
-                        $simonState.context.currentSequence.length === 0) ||
-                    $simonState.value === States.Fail ||
-                    $simonState.value === States.Win
+                    (simonState === States.WaitingForUser &&
+                        simonContext.currentSequence.length === 0) ||
+                    simonState === States.Fail ||
+                    simonState === States.Win
                 )}
         >
             repeat
         </SettingsButton>
-        {#if $simonState.context.mode === SimonModes.Duel}
+        {#if simonContext.mode === SimonModes.Duel}
             <br />
             <div>
                 <input
@@ -833,8 +826,8 @@
     input_username: {input_username}
     players: {paired_players}
 
-    simonState: {$simonState.value}
-    mode: {$simonState.context.mode}</pre>
+    simonState: {simonState}
+    mode: {simonContext.mode}</pre>
         {/if}
     </div>
 </Drawer>
@@ -857,10 +850,10 @@
     </SettingsButton>
     {#if !import.meta.env.PROD}
         <pre>
-simonState: {$simonState.value}
-mode: {$simonState.context.mode}
-sequence: {$simonState.context.sequence}
-current: {$simonState.context.currentSequence}</pre>
+simonState: {simonState}
+mode: {simonContext.mode}
+sequence: {simonContext.sequence}
+current: {simonContext.currentSequence}</pre>
     {/if}
 </header>
 
@@ -877,9 +870,9 @@ current: {$simonState.context.currentSequence}</pre>
         style:outline="50px solid var(--borders-color)"
     >
         {#if onMountDone}
-            {#each $simonState.context.opts as color, i}
+            {#each simonContext.opts as color, i}
                 {@const { color: fgcolor, active: activecolor } =
-                    optProps[color]}
+                    optProps[color as keyof typeof optProps]}
                 <ArcButton
                     {fgcolor}
                     bgcolor={border_color}
